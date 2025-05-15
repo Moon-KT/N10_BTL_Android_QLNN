@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="table_status_array">
+        <item>Trống</item>
+        <item>Đã đặt</item>
+        <item>Đang phục vụ</item>
+    </string-array>
+</resources> 

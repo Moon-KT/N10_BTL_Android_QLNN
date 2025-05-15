@@ -1,0 +1,83 @@
+<resources>
+    <string name="app_name">QL Nha Hang Sesan</string>
+    <string name="search">Tìm kiếm</string>
+    <string name="search_hint">Tìm kiếm món ăn...</string>
+    <string name="no_foods">Chưa có món ăn nào</string>
+    <string name="no_foods_in_category">Không có món ăn nào trong danh mục này</string>
+    <string name="no_search_results">Không tìm thấy món ăn</string>
+    <string name="sort">Sắp xếp</string>
+    <string name="sort_name_asc">Tên (A-Z)</string>
+    <string name="sort_name_desc">Tên (Z-A)</string>
+    <string name="sort_price_asc">Giá (Thấp đến cao)</string>
+    <string name="sort_price_desc">Giá (Cao đến thấp)</string>
+    <string name="sort_category">Danh mục</string>
+    <string name="current_sort">Sắp xếp hiện tại: %s</string>
+    
+    <!-- Table Management -->
+    <string name="table_management">Quản lý bàn</string>
+    <string name="add_table">Thêm bàn</string>
+    <string name="edit_table">Chỉnh sửa bàn</string>
+    <string name="table_name">Tên bàn</string>
+    <string name="table_capacity">Sức chứa: %d người</string>
+    <string name="table_status">Trạng thái</string>
+    <string name="table_note">Ghi chú</string>
+    <string name="status_available">Trống</string>
+    <string name="status_reserved">Đã đặt</string>
+    <string name="status_occupied">Đang phục vụ</string>
+    <string name="save">Lưu</string>
+    <string name="delete">Xóa</string>
+    <string name="cancel">Hủy</string>
+    <string name="no_tables">Chưa có bàn nào</string>
+    <string name="confirm_delete_table">Bạn có chắc chắn muốn xóa bàn này?</string>
+    <string name="table_saved">Đã lưu thông tin bàn</string>
+    <string name="table_deleted">Đã xóa bàn</string>
+    <string name="filter_tables">Lọc bàn</string>
+    <string name="all_tables">Tất cả bàn</string>
+    <string name="capacity">Sức chứa</string>
+    
+    <!-- Daily Menu Management -->
+    <string name="daily_menu">Menu theo ngày</string>
+    <string name="daily_menu_management">Quản lý menu theo ngày</string>
+    <string name="add_menu_item">Thêm món vào menu</string>
+    <string name="edit_menu_item">Chỉnh sửa món trong menu</string>
+    <string name="select_date">Chọn ngày</string>
+    <string name="select_food">Chọn món ăn</string>
+    <string name="quantity">Số lượng</string>
+    <string name="quantity_format">Số lượng: %d</string>
+    <string name="featured">Món đặc biệt</string>
+    <string name="menu_date">Ngày %s</string>
+    <string name="create_menu">Tạo menu mới</string>
+    <string name="no_menu_items">Chưa có món ăn nào trong menu</string>
+    <string name="confirm_delete_menu_item">Bạn có chắc chắn muốn xóa món này khỏi menu?</string>
+    <string name="menu_item_saved">Đã lưu món ăn vào menu</string>
+    <string name="menu_item_deleted">Đã xóa món ăn khỏi menu</string>
+    <string name="food_image">Hình ảnh món ăn</string>
+    
+    <!-- Statistics -->
+    <string name="statistics">Thống kê</string>
+    <string name="statistics_description">Xem báo cáo thống kê nhà hàng</string>
+    <string name="no_statistics">Không có dữ liệu thống kê</string>
+    <string name="food_by_category">Món ăn theo danh mục</string>
+    <string name="revenue_by_date">Doanh thu theo ngày</string>
+    <string name="top_foods">Top món ăn phổ biến</string>
+    <string name="tables_by_status">Bàn theo trạng thái</string>
+    <string name="menu_by_date">Menu theo ngày</string>
+    <string name="show_chart">Hiển thị biểu đồ</string>
+    <string name="statistics_refreshed">Dữ liệu thống kê đã được làm mới</string>
+    <string name="chart_details">Chi tiết biểu đồ</string>
+    <string name="checkout">Thanh toán</string>
+    <string name="order_food">Gọi món</string>
+    
+    <!-- Menu options -->
+    <string name="share">Chia sẻ</string>
+    <string name="refresh">Làm mới</string>
+    <string name="settings">Cài đặt</string>
+    <string name="share_via">Chia sẻ qua</string>
+    <string name="data_refreshed">Đã làm mới dữ liệu</string>
+    <string name="feature_in_development">Tính năng đang phát triển</string>
+    <string name="export_pdf">Xuất PDF</string>
+    <string name="pdf_exported">Đã xuất báo cáo ra file PDF</string>
+    <string name="pdf_export_error">Lỗi khi xuất báo cáo PDF</string>
+    <string name="storage_permission_required">Cần quyền truy cập bộ nhớ để xuất PDF</string>
+    <string name="open_pdf">Mở file PDF</string>
+</resources>

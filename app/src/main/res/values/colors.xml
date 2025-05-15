@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="table_available">#A5D6A7</color>
+    <color name="table_reserved">#FFE082</color>
+    <color name="table_occupied">#EF5350</color>
+    <color name="featured_item">#FFF8E1</color>
+    <color name="featured_item_badge">#FF6F00</color>
+    <color name="colorDivider">#DDDDDD</color>
+    
+    <!-- Material Design Colors -->
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+
+    <!-- Màu chủ đạo -->
+    <color name="colorPrimary">#FF9F00</color> <!-- Cam sáng -->
+    <color name="colorPrimaryDark">#F57C00</color> <!-- Cam đậm -->
+
+    <!-- Màu nhấn mạnh -->
+    <color name="colorAccent">#00B8D4</color> <!-- Xanh dương sáng -->
+
+    <!-- Màu nền sáng -->
+    <color name="colorBackground">#FFFFFF</color> <!-- Trắng sáng -->
+
+    <!-- Màu chữ -->
+    <color name="textColor">#333333</color> <!-- Màu chữ xám tối -->
+
+    <!-- Màu cho TabLayout khi chọn -->
+    <color name="tabSelectedTextColor">#FF5722</color> <!-- Đỏ cam sáng -->
+
+    <!-- Màu cho các chỉ báo trong TabLayout -->
+    <color name="tabIndicatorColor">#FF9800</color> <!-- Vàng cam -->
+</resources>
