@@ -56,6 +56,10 @@
             android:exported="false"
             android:parentActivityName=".TableListActivity" />
         <activity
+            android:name=".DailyMenuActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+        <activity
             android:name=".StatisticsActivity"
             android:exported="false"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />

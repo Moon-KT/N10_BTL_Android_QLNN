@@ -1,7 +1,6 @@
 package com.example.qlnhahangsesan.adapter;
 
 import android.content.Context;
-import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,13 +8,9 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.cardview.widget.CardView;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.request.RequestOptions;
 import com.example.qlnhahangsesan.R;
 import com.example.qlnhahangsesan.model.DailyMenu;
 
@@ -26,118 +21,91 @@ import java.util.Locale;
 public class DailyMenuAdapter extends RecyclerView.Adapter<DailyMenuAdapter.DailyMenuViewHolder> {
 
     private Context context;
-    private List<DailyMenu> menuList;
+    private List<DailyMenu> menuItems;
     private OnMenuItemClickListener listener;
-    private NumberFormat currencyFormat;
+    private NumberFormat currencyFormatter = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
 
     public interface OnMenuItemClickListener {
-        void onMenuItemClick(DailyMenu menuItem, int position);
+        void onMenuItemClick(DailyMenu menuItem);
     }
 
-    public DailyMenuAdapter(Context context, List<DailyMenu> menuList, OnMenuItemClickListener listener) {
+    public DailyMenuAdapter(Context context, List<DailyMenu> menuItems, OnMenuItemClickListener listener) {
         this.context = context;
-        this.menuList = menuList;
+        this.menuItems = menuItems;
         this.listener = listener;
-        this.currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
     }
 
     @NonNull
     @Override
     public DailyMenuViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_daily_menu, parent, false);
-        return new DailyMenuViewHolder(itemView);
+        View view = LayoutInflater.from(context).inflate(R.layout.item_daily_menu, parent, false);
+        return new DailyMenuViewHolder(view);
     }
 
     @Override
     public void onBindViewHolder(@NonNull DailyMenuViewHolder holder, int position) {
-        DailyMenu menuItem = menuList.get(position);
+        DailyMenu menuItem = menuItems.get(position);
         
-        holder.textViewName.setText(menuItem.getFoodName());
+        // Set food name
+        holder.textViewFoodName.setText(menuItem.getFoodName());
+        
+        // Set food category
         holder.textViewCategory.setText(menuItem.getFoodCategory());
-        holder.textViewPrice.setText(currencyFormat.format(menuItem.getFoodPrice()));
-        holder.textViewQuantity.setText(context.getString(R.string.quantity_format, menuItem.getQuantity()));
         
-        // Highlight featured items
+        // Set food price
+        holder.textViewPrice.setText(currencyFormatter.format(menuItem.getFoodPrice()));
+        
+        // Set food quantity
+        holder.textViewQuantity.setText("SL: " + menuItem.getQuantity());
+        
+        // Set featured badge visibility
         if (menuItem.isFeatured()) {
-            holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, R.color.featured_item));
             holder.textViewFeatured.setVisibility(View.VISIBLE);
         } else {
-            holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, android.R.color.white));
             holder.textViewFeatured.setVisibility(View.GONE);
         }
         
-        // Load image with Glide
-        loadFoodImage(holder.imageViewFood, menuItem.getFoodImageUrl());
+        // Load food image
+        String imageUrl = menuItem.getFoodImageUrl();
+        if (imageUrl != null && !imageUrl.isEmpty()) {
+            Glide.with(context)
+                    .load(imageUrl)
+                    .placeholder(R.drawable.placeholder_food)
+                    .error(R.drawable.placeholder_food)
+                    .into(holder.imageViewFood);
+        } else {
+            holder.imageViewFood.setImageResource(R.drawable.placeholder_food);
+        }
         
+        // Set click listener
         holder.itemView.setOnClickListener(v -> {
             if (listener != null) {
-                listener.onMenuItemClick(menuItem, position);
+                listener.onMenuItemClick(menuItem);
             }
         });
     }
 
-    private void loadFoodImage(ImageView imageView, String imageUrl) {
-        RequestOptions requestOptions = new RequestOptions()
-                .placeholder(R.mipmap.ic_launcher)
-                .error(R.mipmap.ic_launcher)
-                .diskCacheStrategy(DiskCacheStrategy.ALL);
-
-        if (imageUrl != null && !imageUrl.isEmpty()) {
-            try {
-                // Try to load from URI
-                Uri uri = Uri.parse(imageUrl);
-                Glide.with(context)
-                        .load(uri)
-                        .apply(requestOptions)
-                        .centerCrop()
-                        .into(imageView);
-            } catch (Exception e) {
-                // If URI parsing fails, load placeholder
-                Glide.with(context)
-                        .load(R.mipmap.ic_launcher)
-                        .apply(requestOptions)
-                        .centerCrop()
-                        .into(imageView);
-            }
-        } else {
-            // If no image URL, load placeholder
-            Glide.with(context)
-                    .load(R.mipmap.ic_launcher)
-                    .apply(requestOptions)
-                    .centerCrop()
-                    .into(imageView);
-        }
-    }
-
     @Override
     public int getItemCount() {
-        return menuList != null ? menuList.size() : 0;
+        return menuItems != null ? menuItems.size() : 0;
     }
 
-    public void updateData(List<DailyMenu> newMenuList) {
-        this.menuList = newMenuList;
-        notifyDataSetChanged();
-    }
+    static class DailyMenuViewHolder extends RecyclerView.ViewHolder {
+        ImageView imageViewFood;
+        TextView textViewFoodName;
+        TextView textViewCategory;
+        TextView textViewPrice;
+        TextView textViewQuantity;
+        TextView textViewFeatured;
 
-    public static class DailyMenuViewHolder extends RecyclerView.ViewHolder {
-        public CardView cardView;
-        public ImageView imageViewFood;
-        public TextView textViewName;
-        public TextView textViewCategory;
-        public TextView textViewPrice;
-        public TextView textViewQuantity;
-        public TextView textViewFeatured;
-
-        public DailyMenuViewHolder(View view) {
-            super(view);
-            cardView = view.findViewById(R.id.cardViewDailyMenu);
-            imageViewFood = view.findViewById(R.id.imageViewFood);
-            textViewName = view.findViewById(R.id.textViewFoodName);
-            textViewCategory = view.findViewById(R.id.textViewFoodCategory);
-            textViewPrice = view.findViewById(R.id.textViewFoodPrice);
-            textViewQuantity = view.findViewById(R.id.textViewQuantity);
-            textViewFeatured = view.findViewById(R.id.textViewFeatured);
+        public DailyMenuViewHolder(@NonNull View itemView) {
+            super(itemView);
+            imageViewFood = itemView.findViewById(R.id.imageViewFood);
+            textViewFoodName = itemView.findViewById(R.id.textViewFoodName);
+            textViewCategory = itemView.findViewById(R.id.textViewFoodCategory);
+            textViewPrice = itemView.findViewById(R.id.textViewFoodPrice);
+            textViewQuantity = itemView.findViewById(R.id.textViewQuantity);
+            textViewFeatured = itemView.findViewById(R.id.textViewFeatured);
         }
     }
 } 

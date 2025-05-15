@@ -26,6 +26,7 @@ public class MainActivity extends AppCompatActivity {
     private CardView cardViewFoods;
     private CardView cardViewTables;
     private CardView cardViewStatistics;
+    private CardView cardViewDailyMenu;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +58,7 @@ public class MainActivity extends AppCompatActivity {
         cardViewFoods = findViewById(R.id.cardViewFoods);
         cardViewTables = findViewById(R.id.cardViewTables);
         cardViewStatistics = findViewById(R.id.cardViewStatistics);
+        cardViewDailyMenu = findViewById(R.id.cardViewDailyMenu);
         
         // Set click listeners for cards
         cardViewEmployees.setOnClickListener(v -> {
@@ -80,6 +82,16 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             } catch (Exception e) {
                 Toast.makeText(MainActivity.this, "Lỗi khi mở thống kê: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+            }
+        });
+        
+        cardViewDailyMenu.setOnClickListener(v -> {
+            try {
+                Intent intent = new Intent(MainActivity.this, DailyMenuActivity.class);
+                startActivity(intent);
+            } catch (Exception e) {
+                Toast.makeText(MainActivity.this, "Lỗi khi mở menu theo ngày: " + e.getMessage(), Toast.LENGTH_SHORT).show();
                 e.printStackTrace();
             }
         });

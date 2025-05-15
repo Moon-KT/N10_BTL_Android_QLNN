@@ -2,6 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/scrollViewTableDetail"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".TableDetailActivity">
@@ -120,6 +121,20 @@
             android:layout_marginTop="8dp"
             android:backgroundTint="#03A9F4"
             android:text="Xem lịch sử đơn hàng"
+            android:textColor="@android:color/white" />
+            
+        <!-- Standalone checkout button -->
+        <Button
+            android:id="@+id/buttonCheckoutStandalone"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="#E91E63"
+            android:text="THANH TOÁN ĐƠN HÀNG"
+            android:textStyle="bold"
+            android:textSize="16sp"
+            android:padding="16dp"
+            android:visibility="gone"
             android:textColor="@android:color/white" />
 
         <!-- Order Details Section -->

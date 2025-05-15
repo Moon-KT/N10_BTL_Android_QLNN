@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Random;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 
 import com.example.qlnhahangsesan.model.DailyMenu;
 import com.example.qlnhahangsesan.model.Employee;
@@ -1177,27 +1178,55 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getReadableDatabase();
         
         try {
+            Log.d(TAG, "Querying revenue from " + startDate + " to " + endDate);
+            
             // Truy vấn dữ liệu từ bảng orders
-            String query = "SELECT " + KEY_ORDER_DATE + " as name, SUM(" + KEY_ORDER_TOTAL_AMOUNT + ") as value" +
-                    " FROM orders" +
-                    " WHERE " + KEY_ORDER_STATUS + " = 'Đã thanh toán'" +
-                    " AND " + KEY_ORDER_DATE + " BETWEEN ? AND ?" +
-                    " GROUP BY " + KEY_ORDER_DATE +
-                    " ORDER BY " + KEY_ORDER_DATE;
+            String query = "SELECT strftime('%Y-%m-%d', datetime(" + KEY_ORDER_DATE + "/1000, 'unixepoch', 'localtime')) as date, " +
+                    "SUM(" + KEY_ORDER_TOTAL_AMOUNT + ") as total " +
+                    "FROM " + TABLE_ORDERS + " " +
+                    "WHERE " + KEY_ORDER_STATUS + " = 'Đã thanh toán' " +
+                    "AND date(datetime(" + KEY_ORDER_DATE + "/1000, 'unixepoch', 'localtime')) BETWEEN date(?) AND date(?) " +
+                    "GROUP BY date " +
+                    "ORDER BY date";
             
             Cursor cursor = db.rawQuery(query, new String[]{startDate, endDate});
             
             if (cursor.moveToFirst()) {
                 do {
-                    String date = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-                    double revenue = cursor.getDouble(cursor.getColumnIndexOrThrow("value"));
+                    String date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
+                    double revenue = cursor.getDouble(cursor.getColumnIndexOrThrow("total"));
+                    Log.d(TAG, "Revenue data: " + date + " = " + revenue);
                     statistics.add(new StatisticItem(date, revenue));
                 } while (cursor.moveToNext());
+            } else {
+                Log.d(TAG, "No revenue data found with 'Đã thanh toán' status, trying other status values");
+                
+                cursor.close();
+                
+                // Try with any status value
+                query = "SELECT strftime('%Y-%m-%d', datetime(" + KEY_ORDER_DATE + "/1000, 'unixepoch', 'localtime')) as date, " +
+                        "SUM(" + KEY_ORDER_TOTAL_AMOUNT + ") as total " +
+                        "FROM " + TABLE_ORDERS + " " +
+                        "WHERE date(datetime(" + KEY_ORDER_DATE + "/1000, 'unixepoch', 'localtime')) BETWEEN date(?) AND date(?) " +
+                        "GROUP BY date " +
+                        "ORDER BY date";
+                
+                cursor = db.rawQuery(query, new String[]{startDate, endDate});
+                
+                if (cursor.moveToFirst()) {
+                    do {
+                        String date = cursor.getString(cursor.getColumnIndexOrThrow("date"));
+                        double revenue = cursor.getDouble(cursor.getColumnIndexOrThrow("total"));
+                        Log.d(TAG, "Revenue data (all statuses): " + date + " = " + revenue);
+                        statistics.add(new StatisticItem(date, revenue));
+                    } while (cursor.moveToNext());
+                } else {
+                    Log.d(TAG, "No revenue data found for the selected period");
+                }
             }
             cursor.close();
         } catch (Exception e) {
-            // Table might not exist or other error
-            e.printStackTrace();
+            Log.e(TAG, "Error getting revenue data", e);
         }
         
         return statistics;
@@ -1209,39 +1238,85 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getReadableDatabase();
         
         try {
+            Log.d(TAG, "Querying top " + limit + " foods");
+            
             // Truy vấn từ bảng order_items và foods
-            String query = "SELECT f." + KEY_FOOD_NAME + " as name, SUM(oi." + KEY_ORDER_ITEM_QUANTITY + ") as value" +
-                    " FROM order_items oi" +
-                    " JOIN " + TABLE_FOODS + " f ON oi." + KEY_ORDER_ITEM_FOOD_ID + " = f." + KEY_FOOD_ID +
-                    " JOIN orders o ON oi." + KEY_ORDER_ITEM_ORDER_ID + " = o." + KEY_ORDER_ID +
-                    " WHERE o." + KEY_ORDER_STATUS + " = 'Đã thanh toán'" +
-                    " GROUP BY oi." + KEY_ORDER_ITEM_FOOD_ID +
-                    " ORDER BY value DESC" +
-                    " LIMIT ?";
+            String query = "SELECT f." + KEY_FOOD_NAME + " as food_name, " +
+                    "SUM(oi." + KEY_ORDER_ITEM_QUANTITY + ") as total_qty " +
+                    "FROM " + TABLE_ORDER_ITEMS + " oi " +
+                    "JOIN " + TABLE_FOODS + " f ON oi." + KEY_ORDER_ITEM_FOOD_ID + " = f." + KEY_FOOD_ID + " " +
+                    "JOIN " + TABLE_ORDERS + " o ON oi." + KEY_ORDER_ITEM_ORDER_ID + " = o." + KEY_ORDER_ID + " " +
+                    "WHERE o." + KEY_ORDER_STATUS + " = 'Đã thanh toán' " +
+                    "GROUP BY oi." + KEY_ORDER_ITEM_FOOD_ID + " " +
+                    "ORDER BY total_qty DESC " +
+                    "LIMIT ?";
             
             Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(limit)});
             
             if (cursor.moveToFirst()) {
                 do {
-                    String foodName = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-                    int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("value"));
+                    String foodName = cursor.getString(cursor.getColumnIndexOrThrow("food_name"));
+                    int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("total_qty"));
+                    Log.d(TAG, "Top food: " + foodName + " = " + quantity);
                     statistics.add(new StatisticItem(foodName, quantity));
                 } while (cursor.moveToNext());
-            }
-            cursor.close();
-        } catch (Exception e) {
-            // Table might not exist or other error
-            e.printStackTrace();
-            
-            // Fallback - Hiển thị dữ liệu mẫu khi chưa có đơn hàng
-            if (statistics.isEmpty()) {
-                List<Food> foods = getAllFoods();
-                int count = Math.min(limit, foods.size());
-                for (int i = 0; i < count; i++) {
-                    Food food = foods.get(i);
-                    statistics.add(new StatisticItem(food.getName(), random.nextInt(50) + 10));
+            } else {
+                Log.d(TAG, "No top food data found in paid orders, checking all orders");
+                // Fallback: look at all orders regardless of payment status if no paid orders found
+                query = "SELECT f." + KEY_FOOD_NAME + " as food_name, " +
+                        "SUM(oi." + KEY_ORDER_ITEM_QUANTITY + ") as total_qty " +
+                        "FROM " + TABLE_ORDER_ITEMS + " oi " +
+                        "JOIN " + TABLE_FOODS + " f ON oi." + KEY_ORDER_ITEM_FOOD_ID + " = f." + KEY_FOOD_ID + " " +
+                        "GROUP BY oi." + KEY_ORDER_ITEM_FOOD_ID + " " +
+                        "ORDER BY total_qty DESC " +
+                        "LIMIT ?";
+                
+                cursor.close();
+                cursor = db.rawQuery(query, new String[]{String.valueOf(limit)});
+                
+                if (cursor.moveToFirst()) {
+                    do {
+                        String foodName = cursor.getString(cursor.getColumnIndexOrThrow("food_name"));
+                        int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("total_qty"));
+                        Log.d(TAG, "Top food (all orders): " + foodName + " = " + quantity);
+                        statistics.add(new StatisticItem(foodName, quantity));
+                    } while (cursor.moveToNext());
+                } else {
+                    Log.d(TAG, "No food order data found at all");
                 }
             }
+            cursor.close();
+            
+            // If still no data, check order items without joining to foods
+            // This catches cases where food IDs might not match food table but still exist in orders
+            if (statistics.isEmpty()) {
+                Log.d(TAG, "Checking raw order items data");
+                query = "SELECT " + KEY_ORDER_ITEM_FOOD_ID + " as food_id, " +
+                        "SUM(" + KEY_ORDER_ITEM_QUANTITY + ") as total_qty " +
+                        "FROM " + TABLE_ORDER_ITEMS + " " +
+                        "GROUP BY " + KEY_ORDER_ITEM_FOOD_ID + " " +
+                        "ORDER BY total_qty DESC " +
+                        "LIMIT ?";
+                
+                cursor = db.rawQuery(query, new String[]{String.valueOf(limit)});
+                
+                if (cursor.moveToFirst()) {
+                    do {
+                        long foodId = cursor.getLong(cursor.getColumnIndexOrThrow("food_id"));
+                        int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("total_qty"));
+                        
+                        // Get the food name from the food ID
+                        Food food = getFoodById(foodId);
+                        String foodName = (food != null) ? food.getName() : "Món #" + foodId;
+                        
+                        Log.d(TAG, "Top food (by ID): " + foodName + " = " + quantity);
+                        statistics.add(new StatisticItem(foodName, quantity));
+                    } while (cursor.moveToNext());
+                }
+                cursor.close();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting top foods data", e);
         }
         
         return statistics;
@@ -1252,27 +1327,32 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<StatisticItem> statistics = new ArrayList<>();
         SQLiteDatabase db = getReadableDatabase();
         
-        String query = "SELECT " + KEY_TABLE_STATUS + " as name, COUNT(*) as value" +
-                " FROM " + TABLE_TABLES +
-                " GROUP BY " + KEY_TABLE_STATUS +
-                " ORDER BY value DESC";
-        
-        Cursor cursor = db.rawQuery(query, null);
+        Log.d(TAG, "Querying table count by status");
         
         try {
+            String query = "SELECT " + KEY_TABLE_STATUS + " as status, COUNT(*) as count" +
+                    " FROM " + TABLE_TABLES +
+                    " GROUP BY " + KEY_TABLE_STATUS +
+                    " ORDER BY count DESC";
+            
+            Cursor cursor = db.rawQuery(query, null);
+            
             if (cursor.moveToFirst()) {
                 do {
-                    String status = cursor.getString(cursor.getColumnIndexOrThrow("name"));
-                    int count = cursor.getInt(cursor.getColumnIndexOrThrow("value"));
+                    String status = cursor.getString(cursor.getColumnIndexOrThrow("status"));
+                    int count = cursor.getInt(cursor.getColumnIndexOrThrow("count"));
+                    Log.d(TAG, "Table status: " + status + " = " + count);
                     statistics.add(new StatisticItem(status, count));
                 } while (cursor.moveToNext());
+            } else {
+                Log.d(TAG, "No table status data found");
             }
-        } catch (Exception e) {
-            // Error handling
-        } finally {
+            
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
             }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting table status data", e);
         }
         
         return statistics;
@@ -1318,13 +1398,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String today = dateFormat.format(new Date());
         
-        String query = "SELECT f.* FROM " + TABLE_FOODS + " f " +
-                      "INNER JOIN " + TABLE_DAILY_MENU + " dm ON f." + KEY_FOOD_ID + " = dm." + KEY_DAILY_MENU_FOOD_ID + " " +
-                      "WHERE dm." + KEY_DAILY_MENU_DATE + " = ? AND f." + KEY_FOOD_AVAILABLE + " = 1";
-        
-        Cursor cursor = db.rawQuery(query, new String[]{today});
+        Log.d(TAG, "Getting menu items for date: " + today);
         
         try {
+            String query = "SELECT f.* FROM " + TABLE_FOODS + " f " +
+                          "INNER JOIN " + TABLE_DAILY_MENU + " dm ON f." + KEY_FOOD_ID + " = dm." + KEY_DAILY_MENU_FOOD_ID + " " +
+                          "WHERE dm." + KEY_DAILY_MENU_DATE + " = ? AND f." + KEY_FOOD_AVAILABLE + " = 1";
+            
+            Cursor cursor = db.rawQuery(query, new String[]{today});
+            
             if (cursor.moveToFirst()) {
                 do {
                     Food food = new Food(
@@ -1337,19 +1419,67 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                         cursor.getInt(cursor.getColumnIndexOrThrow(KEY_FOOD_AVAILABLE)) == 1
                     );
                     menuItems.add(food);
+                    Log.d(TAG, "Added menu item: " + food.getName());
                 } while (cursor.moveToNext());
+            } else {
+                Log.d(TAG, "No daily menu items found for today, checking recent dates");
+                
+                // If no menu for today, check if there's a menu for recent dates (last 7 days)
+                query = "SELECT DISTINCT " + KEY_DAILY_MENU_DATE + 
+                        " FROM " + TABLE_DAILY_MENU + 
+                        " ORDER BY " + KEY_DAILY_MENU_DATE + " DESC LIMIT 7";
+                
+                cursor.close();
+                cursor = db.rawQuery(query, null);
+                
+                if (cursor.moveToFirst()) {
+                    String recentDate = cursor.getString(cursor.getColumnIndexOrThrow(KEY_DAILY_MENU_DATE));
+                    Log.d(TAG, "Found recent menu date: " + recentDate);
+                    
+                    cursor.close();
+                    
+                    // Use the most recent menu date
+                    query = "SELECT f.* FROM " + TABLE_FOODS + " f " +
+                            "INNER JOIN " + TABLE_DAILY_MENU + " dm ON f." + KEY_FOOD_ID + " = dm." + KEY_DAILY_MENU_FOOD_ID + " " +
+                            "WHERE dm." + KEY_DAILY_MENU_DATE + " = ? AND f." + KEY_FOOD_AVAILABLE + " = 1";
+                    
+                    cursor = db.rawQuery(query, new String[]{recentDate});
+                    
+                    if (cursor.moveToFirst()) {
+                        do {
+                            Food food = new Food(
+                                cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)),
+                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)),
+                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)),
+                                cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)),
+                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)),
+                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)),
+                                cursor.getInt(cursor.getColumnIndexOrThrow(KEY_FOOD_AVAILABLE)) == 1
+                            );
+                            menuItems.add(food);
+                            Log.d(TAG, "Added menu item from recent date: " + food.getName());
+                        } while (cursor.moveToNext());
+                    }
+                }
+                
+                // If still no menu items, fall back to available foods
+                if (menuItems.isEmpty()) {
+                    Log.d(TAG, "No menu items found in recent dates, using all available foods");
+                    cursor.close();
+                    menuItems = getAllAvailableFoods();
+                }
             }
-        } finally {
+            
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
             }
-        }
-        
-        // If no daily menu items, return all available foods
-        if (menuItems.isEmpty()) {
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting menu items for today", e);
+            // On exception, fall back to all available foods
             menuItems = getAllAvailableFoods();
         }
         
+        Log.d(TAG, "Returning " + menuItems.size() + " menu items");
         return menuItems;
     }
 
@@ -1424,6 +1554,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = this.getWritableDatabase();
         long orderId = -1;
         
+        Log.d(TAG, "Saving new order for table ID: " + order.getTableId());
+        
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
@@ -1433,6 +1565,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(KEY_ORDER_STATUS, "Chưa thanh toán"); // Setting initial status
             
             orderId = db.insert(TABLE_ORDERS, null, values);
+            Log.d(TAG, "Inserted order with ID: " + orderId);
             
             if (orderId > 0 && order.getOrderItems() != null) {
                 // Save order items
@@ -1448,6 +1581,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     
                     db.insert(TABLE_ORDER_ITEMS, null, itemValues);
                 }
+                Log.d(TAG, "Saved " + order.getOrderItems().size() + " order items");
             }
             
             db.setTransactionSuccessful();
@@ -1466,6 +1600,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     public Order getCurrentOrderForTable(long tableId) {
         Order order = null;
         SQLiteDatabase db = this.getReadableDatabase();
+        
+        Log.d(TAG, "Getting current order for table ID: " + tableId);
         
         String query = "SELECT * FROM " + TABLE_ORDERS + 
                        " WHERE " + KEY_ORDER_TABLE_ID + " = ? AND " + 
@@ -1486,9 +1622,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 order.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_ORDER_TOTAL_AMOUNT)));
                 order.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(KEY_ORDER_STATUS)));
                 
+                Log.d(TAG, "Found order ID: " + order.getId() + " with status: " + order.getStatus());
+                
                 // Get order items for this order
                 List<OrderItem> items = getOrderItemsForOrder(order.getId());
                 order.setOrderItems(items);
+                
+                Log.d(TAG, "Order has " + items.size() + " items");
+            } else {
+                Log.d(TAG, "No unpaid order found for table ID: " + tableId);
             }
         } catch (Exception e) {
             Log.e(TAG, "Error getting current order for table", e);
@@ -1578,11 +1720,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
      * Update order status
      */
     public boolean updateOrderStatus(long orderId, String status) {
+        Log.d(TAG, "Updating order " + orderId + " status to: " + status);
         SQLiteDatabase db = getWritableDatabase();
         ContentValues values = new ContentValues();
         values.put(KEY_ORDER_STATUS, status);
         
         int rows = db.update(TABLE_ORDERS, values, KEY_ORDER_ID + " = ?", new String[]{String.valueOf(orderId)});
+        Log.d(TAG, "Updated " + rows + " rows");
         return rows > 0;
     }
 

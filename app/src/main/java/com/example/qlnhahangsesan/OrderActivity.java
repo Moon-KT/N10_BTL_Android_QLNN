@@ -2,6 +2,7 @@ package com.example.qlnhahangsesan;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.Button;
@@ -37,7 +38,6 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
     private TextView textViewTotalAmount;
     private Button buttonCheckout;
     private Button buttonCancel;
-    private TextView textViewOrderStatus;
 
     private DatabaseHelper databaseHelper;
     private MenuAdapter menuAdapter;
@@ -108,7 +108,6 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         textViewTotalAmount = findViewById(R.id.textViewTotalAmount);
         buttonCheckout = findViewById(R.id.buttonCheckout);
         buttonCancel = findViewById(R.id.buttonCancel);
-        textViewOrderStatus = findViewById(R.id.textViewOrderStatus);
     }
 
     private void setupListView() {
@@ -219,28 +218,62 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         currentOrder.setOrderDate(new Date());
         currentOrder.setOrderItems(orderItems);
 
-        // Lưu đơn hàng vào database
-        long orderId = databaseHelper.saveOrder(currentOrder);
+        // Hiển thị dialog xác nhận
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Xác nhận đặt món");
         
-        if (orderId > 0) {
-            // Đơn hàng đã được lưu thành công
-            currentOrder.setId(orderId);
-            
-            // Đảm bảo trạng thái bàn là "Đang phục vụ"
-            currentTable.setStatus(getString(R.string.status_occupied));
-            databaseHelper.updateTable(currentTable);
-
-            // Truyền dữ liệu đơn hàng về TableDetailActivity
-            Intent resultIntent = new Intent();
-            resultIntent.putExtra("order", currentOrder);
-            resultIntent.putExtra("tableId", tableId);
-            
-            setResult(RESULT_OK, resultIntent);
-            Toast.makeText(this, "Đã gọi món thành công", Toast.LENGTH_SHORT).show();
-            finish();
-        } else {
-            Toast.makeText(this, "Lỗi khi lưu đơn hàng", Toast.LENGTH_SHORT).show();
+        // Tạo thông báo với danh sách món đã đặt
+        StringBuilder message = new StringBuilder("Bạn đã chọn:\n\n");
+        for (OrderItem item : orderItems) {
+            message.append("- ").append(item.getName())
+                   .append(" (").append(item.getQuantity()).append(")")
+                   .append(" x ").append(currencyFormat.format(item.getPrice()))
+                   .append(" = ").append(currencyFormat.format(item.getTotalPrice()))
+                   .append("\n");
         }
+        message.append("\nTổng tiền: ").append(currencyFormat.format(currentOrder.getTotalAmount()));
+        message.append("\n\nXác nhận đặt món?");
+        
+        builder.setMessage(message.toString());
+        builder.setPositiveButton("Xác nhận", (dialog, which) -> {
+            // Lưu đơn hàng vào database
+            long orderId = databaseHelper.saveOrder(currentOrder);
+            
+            if (orderId > 0) {
+                // Đơn hàng đã được lưu thành công
+                currentOrder.setId(orderId);
+                
+                // Đảm bảo trạng thái bàn là "Đang phục vụ"
+                currentTable.setStatus(getString(R.string.status_occupied));
+                databaseHelper.updateTable(currentTable);
+
+                // Hiển thị dialog tiến trình
+                AlertDialog progressDialog = new AlertDialog.Builder(this)
+                    .setTitle("Đang xử lý")
+                    .setMessage("Đang lưu đơn hàng...")
+                    .setCancelable(false)
+                    .create();
+                progressDialog.show();
+                
+                // Trì hoãn 1 giây để hiển thị rõ quá trình
+                new Handler().postDelayed(() -> {
+                    progressDialog.dismiss();
+                    
+                    // Truyền dữ liệu đơn hàng về TableDetailActivity
+                    Intent resultIntent = new Intent();
+                    resultIntent.putExtra("order", currentOrder);
+                    resultIntent.putExtra("tableId", tableId);
+                    
+                    setResult(RESULT_OK, resultIntent);
+                    Toast.makeText(this, "Đã gọi món thành công", Toast.LENGTH_SHORT).show();
+                    finish();
+                }, 1000);
+            } else {
+                Toast.makeText(this, "Lỗi khi lưu đơn hàng", Toast.LENGTH_SHORT).show();
+            }
+        });
+        builder.setNegativeButton("Hủy", null);
+        builder.show();
     }
 
     @Override
@@ -289,35 +322,6 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         });
         builder.setNegativeButton("Hủy", null);
         builder.show();
-    }
-
-    private void confirmCheckout() {
-        if (currentOrder == null || currentOrder.getId() <= 0) {
-            Toast.makeText(this, "Không có đơn hàng nào để thanh toán", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Hiển thị xác nhận thanh toán
-        new AlertDialog.Builder(this)
-                .setTitle("Thanh toán")
-                .setMessage("Xác nhận thanh toán cho đơn hàng này?")
-                .setPositiveButton("Thanh toán", (dialog, which) -> {
-                    // Update order status in the database
-                    boolean success = databaseHelper.updateOrderStatus(currentOrder.getId(), "Đã thanh toán");
-                    
-                    if (success) {
-                        // Update UI to reflect the new status
-                        textViewOrderStatus.setText("Trạng thái: Đã thanh toán");
-                        textViewOrderStatus.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
-                        buttonCheckout.setVisibility(View.GONE);
-                        
-                        Toast.makeText(this, "Thanh toán thành công", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Lỗi khi cập nhật trạng thái đơn hàng", Toast.LENGTH_SHORT).show();
-                    }
-                })
-                .setNegativeButton(R.string.cancel, null)
-                .show();
     }
 }
 

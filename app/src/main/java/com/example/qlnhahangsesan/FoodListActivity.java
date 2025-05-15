@@ -1,5 +1,6 @@
 package com.example.qlnhahangsesan;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.Menu;
@@ -18,6 +19,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.qlnhahangsesan.adapter.FoodAdapter;
 import com.example.qlnhahangsesan.database.DatabaseHelper;
+import com.example.qlnhahangsesan.model.DailyMenu;
 import com.example.qlnhahangsesan.model.Food;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
@@ -48,11 +50,22 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
     private String currentSortBy = "name"; // Default sort by name
     private boolean isAscending = true; // Default ascending order
     private String currentSortLabel = "";
+    
+    // Daily menu mode
+    private boolean forDailyMenu = false;
+    private String selectedDate = "";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_food_list);
+
+        // Check if opened for daily menu
+        Intent intent = getIntent();
+        if (intent != null) {
+            forDailyMenu = intent.getBooleanExtra("forDailyMenu", false);
+            selectedDate = intent.getStringExtra("selectedDate");
+        }
 
         // Initialize database helper
         databaseHelper = DatabaseHelper.getInstance(this);
@@ -70,16 +83,25 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         foodAdapter = new FoodAdapter(this, foodList, this);
         recyclerViewFoods.setAdapter(foodAdapter);
 
-        // Set up FAB
-        fabAddFood.setOnClickListener(v -> {
-            Intent intent = new Intent(FoodListActivity.this, FoodDetailActivity.class);
-            startActivityForResult(intent, REQUEST_ADD_FOOD);
-        });
+        // Set up FAB visibility based on mode
+        if (forDailyMenu) {
+            fabAddFood.setVisibility(View.GONE);
+        } else {
+            // Set up FAB
+            fabAddFood.setOnClickListener(v -> {
+                Intent foodIntent = new Intent(FoodListActivity.this, FoodDetailActivity.class);
+                startActivityForResult(foodIntent, REQUEST_ADD_FOOD);
+            });
+        }
 
         // Set up back button in action bar
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-            getSupportActionBar().setTitle("Quản lý món ăn");
+            if (forDailyMenu) {
+                getSupportActionBar().setTitle("Chọn món cho menu");
+            } else {
+                getSupportActionBar().setTitle("Quản lý món ăn");
+            }
         }
         
         // Set default sort label
@@ -254,30 +276,25 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
             }
         });
     }
-
+    
     private void loadFoodsSorted() {
         progressBar.setVisibility(View.VISIBLE);
         
-        List<Food> foods;
-        
+        // Load foods from database
+        List<Food> loadedFoods;
         if (currentCategory.equals("Tất cả")) {
-            // Get all foods sorted
-            foods = databaseHelper.getFoodsSorted(currentSortBy, isAscending);
+            loadedFoods = databaseHelper.getFoodsSorted(currentSortBy, isAscending);
         } else {
-            // Get foods by category sorted
-            foods = databaseHelper.getFoodsByCategorySorted(currentCategory, currentSortBy, isAscending);
+            loadedFoods = databaseHelper.getFoodsByCategorySorted(currentCategory, currentSortBy, isAscending);
         }
         
+        // Update UI
         foodList.clear();
-        if (foods != null && !foods.isEmpty()) {
-            foodList.addAll(foods);
+        if (loadedFoods != null && !loadedFoods.isEmpty()) {
+            foodList.addAll(loadedFoods);
             textViewEmpty.setVisibility(View.GONE);
         } else {
-            if (currentCategory.equals("Tất cả")) {
-                textViewEmpty.setText(getString(R.string.no_foods));
-            } else {
-                textViewEmpty.setText(getString(R.string.no_foods_in_category));
-            }
+            textViewEmpty.setText(getString(R.string.no_foods));
             textViewEmpty.setVisibility(View.VISIBLE);
         }
         
@@ -287,10 +304,55 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
 
     @Override
     public void onFoodClick(Food food, int position) {
-        // Open food detail for editing
-        Intent intent = new Intent(FoodListActivity.this, FoodDetailActivity.class);
-        intent.putExtra("food", food);
-        startActivityForResult(intent, REQUEST_EDIT_FOOD);
+        if (forDailyMenu) {
+            // Show dialog to add to daily menu
+            showAddToDailyMenuDialog(food);
+        } else {
+            // Open food detail for editing
+            Intent intent = new Intent(FoodListActivity.this, FoodDetailActivity.class);
+            intent.putExtra("food", food);
+            startActivityForResult(intent, REQUEST_EDIT_FOOD);
+        }
+    }
+
+    private void showAddToDailyMenuDialog(Food food) {
+        // Create a dialog to set quantity and featured status
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_menu_item, null);
+        androidx.appcompat.widget.SwitchCompat switchFeatured = dialogView.findViewById(R.id.switchFeatured);
+        com.google.android.material.slider.Slider sliderQuantity = dialogView.findViewById(R.id.sliderQuantity);
+        TextView textViewQuantity = dialogView.findViewById(R.id.textViewQuantity);
+
+        // Set default values
+        switchFeatured.setChecked(false);
+        sliderQuantity.setValue(10); // Default quantity
+        textViewQuantity.setText("Số lượng: 10");
+
+        // Update quantity text when slider changes
+        sliderQuantity.addOnChangeListener((slider, value, fromUser) -> {
+            textViewQuantity.setText(String.format("Số lượng: %d", (int) value));
+        });
+
+        new AlertDialog.Builder(this)
+                .setTitle("Thêm " + food.getName() + " vào menu")
+                .setView(dialogView)
+                .setPositiveButton("Thêm", (dialog, which) -> {
+                    // Create DailyMenu object
+                    DailyMenu dailyMenu = new DailyMenu();
+                    dailyMenu.setDate(selectedDate);
+                    dailyMenu.setFoodId(food.getId());
+                    dailyMenu.setFeatured(switchFeatured.isChecked());
+                    dailyMenu.setQuantity((int) sliderQuantity.getValue());
+
+                    // Add to database
+                    long id = databaseHelper.addDailyMenuItem(dailyMenu);
+                    if (id > 0) {
+                        Toast.makeText(this, "Đã thêm món vào menu", Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(this, "Có lỗi khi thêm món vào menu", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Hủy", null)
+                .show();
     }
 
     @Override
@@ -298,18 +360,23 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         super.onActivityResult(requestCode, resultCode, data);
         
         if (resultCode == RESULT_OK) {
-            // Refresh category tabs
-            tabLayoutCategories.removeAllTabs();
-            setupCategoryTabs();
-            
-            // Reload food list
-            currentQuery = "";
-            if (searchView != null) {
-                searchView.setQuery("", false);
-                searchView.clearFocus();
+            if (requestCode == REQUEST_ADD_FOOD || requestCode == REQUEST_EDIT_FOOD) {
+                // Reload food list
+                loadFoodsSorted();
+                
+                // Also reload category tabs in case new categories were added
+                tabLayoutCategories.removeAllTabs();
+                setupCategoryTabs();
             }
-            
-            loadFoodsSorted();
         }
+    }
+    
+    @Override
+    public void finish() {
+        if (forDailyMenu) {
+            // Return OK result to DailyMenuActivity
+            setResult(RESULT_OK);
+        }
+        super.finish();
     }
 } 
