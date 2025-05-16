@@ -21,12 +21,21 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.request.RequestOptions;
+import com.example.qlnhahangsesan.adapter.CategoryChecklistAdapter;
 import com.example.qlnhahangsesan.database.DatabaseHelper;
 import com.example.qlnhahangsesan.model.Food;
 import com.example.qlnhahangsesan.model.FoodCategory;
 
-public class FoodDetailActivity extends AppCompatActivity {
+import java.util.ArrayList;
+import java.util.List;
+
+public class FoodDetailActivity extends AppCompatActivity implements CategoryChecklistAdapter.OnCategorySelectionChangedListener {
 
     private static final int REQUEST_IMAGE_PICK = 1;
 
@@ -34,7 +43,7 @@ public class FoodDetailActivity extends AppCompatActivity {
     private ImageView imageViewFoodPhoto;
     private Button buttonChooseImage;
     private EditText editTextName;
-    private Spinner spinnerCategory;
+    private RecyclerView recyclerViewCategories;
     private EditText editTextPrice;
     private EditText editTextDescription;
     private CheckBox checkBoxAvailable;
@@ -46,6 +55,8 @@ public class FoodDetailActivity extends AppCompatActivity {
     private Food food;
     private boolean isEditMode = false;
     private String imageUrl = "";
+    private CategoryChecklistAdapter categoryAdapter;
+    private List<FoodCategory> selectedCategories = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,7 +71,7 @@ public class FoodDetailActivity extends AppCompatActivity {
         imageViewFoodPhoto = findViewById(R.id.imageViewFoodPhoto);
         buttonChooseImage = findViewById(R.id.buttonChooseImage);
         editTextName = findViewById(R.id.editTextName);
-        spinnerCategory = findViewById(R.id.spinnerCategory);
+        recyclerViewCategories = findViewById(R.id.recyclerViewCategories);
         editTextPrice = findViewById(R.id.editTextPrice);
         editTextDescription = findViewById(R.id.editTextDescription);
         checkBoxAvailable = findViewById(R.id.checkBoxAvailable);
@@ -68,8 +79,8 @@ public class FoodDetailActivity extends AppCompatActivity {
         buttonSave = findViewById(R.id.buttonSave);
         buttonDelete = findViewById(R.id.buttonDelete);
 
-        // Set up category spinner
-        setupCategorySpinner();
+        // Set up category recycler view
+        setupCategoryRecyclerView();
 
         // Set up image picker
         buttonChooseImage.setOnClickListener(v -> openImagePicker());
@@ -103,24 +114,24 @@ public class FoodDetailActivity extends AppCompatActivity {
         buttonDelete.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
     }
 
-    private void setupCategorySpinner() {
-        ArrayAdapter<FoodCategory> adapter = new ArrayAdapter<>(
-                this, android.R.layout.simple_spinner_item, FoodCategory.values());
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinnerCategory.setAdapter(adapter);
+    private void setupCategoryRecyclerView() {
+        categoryAdapter = new CategoryChecklistAdapter(this, this);
+        recyclerViewCategories.setLayoutManager(new LinearLayoutManager(this));
+        recyclerViewCategories.setAdapter(categoryAdapter);
+    }
+
+    @Override
+    public void onCategorySelectionChanged(List<FoodCategory> selectedCategories) {
+        this.selectedCategories = selectedCategories;
     }
 
     private void populateFoodData() {
         editTextName.setText(food.getName());
         
-        // Set category in spinner
-        if (food.getCategory() != null) {
-            for (int i = 0; i < FoodCategory.values().length; i++) {
-                if (FoodCategory.values()[i] == food.getCategory()) {
-                    spinnerCategory.setSelection(i);
-                    break;
-                }
-            }
+        // Set selected categories
+        if (food.getCategories() != null && !food.getCategories().isEmpty()) {
+            selectedCategories = new ArrayList<>(food.getCategories());
+            categoryAdapter.setSelectedCategories(selectedCategories);
         }
         
         editTextPrice.setText(String.valueOf(food.getPrice()));
@@ -130,8 +141,25 @@ public class FoodDetailActivity extends AppCompatActivity {
         // Set image if available
         imageUrl = food.getImageUrl();
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            // In a real app, you would use a library like Glide or Picasso to load images
-            // For simplicity, we'll just set a placeholder
+            try {
+                // Use Glide to load image
+                Uri uri = Uri.parse(imageUrl);
+                RequestOptions requestOptions = new RequestOptions()
+                    .placeholder(R.mipmap.ic_launcher)
+                    .error(R.mipmap.ic_launcher)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL);
+                
+                Glide.with(this)
+                    .load(uri)
+                    .apply(requestOptions)
+                    .centerCrop()
+                    .into(imageViewFoodPhoto);
+            } catch (Exception e) {
+                // If URI parsing fails, load placeholder
+                imageViewFoodPhoto.setImageResource(R.mipmap.ic_launcher);
+            }
+        } else {
+            // If no image URL, load placeholder
             imageViewFoodPhoto.setImageResource(R.mipmap.ic_launcher);
         }
     }
@@ -144,7 +172,6 @@ public class FoodDetailActivity extends AppCompatActivity {
     private void saveFood() {
         // Get input values
         String name = editTextName.getText().toString().trim();
-        FoodCategory category = (FoodCategory) spinnerCategory.getSelectedItem();
         String priceStr = editTextPrice.getText().toString().trim();
         String description = editTextDescription.getText().toString().trim();
         boolean available = checkBoxAvailable.isChecked();
@@ -171,10 +198,16 @@ public class FoodDetailActivity extends AppCompatActivity {
             return;
         }
 
+        // Validate categories
+        if (selectedCategories.isEmpty()) {
+            Toast.makeText(this, "Vui lòng chọn ít nhất một loại món", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         if (isEditMode) {
             // Update existing food
             food.setName(name);
-            food.setCategory(category);
+            food.setCategories(selectedCategories);
             food.setPrice(price);
             food.setDescription(description);
             food.setImageUrl(imageUrl);
@@ -189,7 +222,7 @@ public class FoodDetailActivity extends AppCompatActivity {
             }
         } else {
             // Add new food
-            Food newFood = new Food(name, category, price, description, imageUrl, available);
+            Food newFood = new Food(name, selectedCategories, price, description, imageUrl, available);
             long id = databaseHelper.addFood(newFood);
 
             if (id > 0) {
@@ -235,10 +268,20 @@ public class FoodDetailActivity extends AppCompatActivity {
         if (requestCode == REQUEST_IMAGE_PICK && resultCode == RESULT_OK && data != null) {
             Uri selectedImageUri = data.getData();
             if (selectedImageUri != null) {
-                // In a real app, you would save the image to storage and get a URL
-                // For simplicity, we'll just store the URI string
+                // Save the URI string
                 imageUrl = selectedImageUri.toString();
-                imageViewFoodPhoto.setImageURI(selectedImageUri);
+                
+                // Use Glide to load and display the image
+                RequestOptions requestOptions = new RequestOptions()
+                    .placeholder(R.mipmap.ic_launcher)
+                    .error(R.mipmap.ic_launcher)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL);
+                
+                Glide.with(this)
+                    .load(selectedImageUri)
+                    .apply(requestOptions)
+                    .centerCrop()
+                    .into(imageViewFoodPhoto);
             }
         }
     }

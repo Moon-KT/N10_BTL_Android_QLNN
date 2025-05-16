@@ -13,10 +13,20 @@
         android:orientation="vertical"
         android:padding="16dp">
 
+        <!-- Table Information Section -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/table_name"
+            android:text="Thông tin bàn"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_500"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/table_number"
             android:textSize="16sp"
             android:textStyle="bold" />
 
@@ -25,8 +35,23 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:hint="@string/table_name"
-            android:inputType="text"
+            android:hint="@string/table_number"
+            android:inputType="number"
+            android:minHeight="48dp" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="@string/table_type"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <Spinner
+            android:id="@+id/spinnerTableType"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:minHeight="48dp" />
 
         <TextView
@@ -81,19 +106,20 @@
             android:minHeight="48dp" />
 
         <LinearLayout
+            android:id="@+id/buttonContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="24dp"
             android:orientation="horizontal">
 
             <Button
-                android:id="@+id/buttonDelete"
+                android:id="@+id/buttonCancel"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
                 android:layout_weight="1"
-                android:backgroundTint="@android:color/holo_red_light"
-                android:text="@string/delete" />
+                android:backgroundTint="@android:color/darker_gray"
+                android:text="@string/cancel" />
 
             <Button
                 android:id="@+id/buttonSave"
@@ -104,142 +130,139 @@
                 android:text="@string/save" />
 
         </LinearLayout>
-        
+
+        <!-- Food Order Section -->
+        <TextView
+            android:id="@+id/textViewOrderSectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="Món ăn"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:textColor="@color/purple_500"
+            android:visibility="gone"/>
+
+        <!-- Order Button -->
         <Button
             android:id="@+id/buttonOrder"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:backgroundTint="@color/colorAccent"
-            android:text="@string/order_food"
-            android:textColor="@android:color/white" />
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/purple_500"
+            android:text="Gọi món"
+            android:textColor="@android:color/white"
+            android:visibility="gone"/>
 
-        <!-- Standalone checkout button -->
-        <Button
-            android:id="@+id/buttonCheckoutStandalone"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:backgroundTint="#E91E63"
-            android:text="THANH TOÁN ĐƠN HÀNG"
-            android:textStyle="bold"
-            android:textSize="16sp"
-            android:padding="16dp"
-            android:visibility="gone"
-            android:textColor="@android:color/white" />
-
-        <!-- Order Details Section -->
+        <!-- Food Order List Header -->
         <LinearLayout
-            android:id="@+id/orderDetailsLayout"
+            android:id="@+id/orderListHeaderContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:layout_marginTop="24dp"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            android:padding="8dp"
+            android:background="#EEEEEE"
             android:visibility="gone">
-            
+
             <TextView
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Chi tiết đơn hàng"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-                
+                android:layout_weight="0.5"
+                android:text="STT"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
             <TextView
-                android:id="@+id/textViewOrderStatus"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="8dp"
-                android:text="Trạng thái: Chưa thanh toán"
-                android:textColor="#F44336"
-                android:textSize="14sp" />
-                
-            <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_weight="2"
+                android:text="Tên món"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingVertical="4dp"
-                android:background="#EEEEEE">
-                
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="2"
-                    android:text="Tên món"
-                    android:textStyle="bold"
-                    android:textSize="14sp" />
-                
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="0.5"
-                    android:gravity="center"
-                    android:text="SL"
-                    android:textStyle="bold"
-                    android:textSize="14sp" />
-                
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
-                    android:text="Đơn giá"
-                    android:textStyle="bold"
-                    android:textSize="14sp" />
-                
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
-                    android:text="Thành tiền"
-                    android:textStyle="bold"
-                    android:textSize="14sp" />
-            </LinearLayout>
-                
-            <ListView
-                android:id="@+id/listViewOrderItems"
-                android:layout_width="match_parent"
-                android:layout_height="200dp"
-                android:layout_marginTop="8dp"
-                android:background="#F5F5F5"/>
-                
-            <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_weight="0.7"
+                android:text="SL"
+                android:textStyle="bold"
+                android:gravity="center"/>
+
+            <TextView
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="8dp"
-                android:paddingVertical="8dp"
-                android:background="#F5F5F5">
-                
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Tổng tiền:"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-                    
-                <TextView
-                    android:id="@+id/textViewOrderTotal"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="end"
-                    android:text="0 VND"
-                    android:textColor="#F44336"
-                    android:textSize="18sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-            
-            <Button
-                android:id="@+id/buttonCheckout"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
-                android:backgroundTint="#4CAF50"
-                android:text="Thanh toán"
-                android:textColor="@android:color/white" />
+                android:layout_weight="1.5"
+                android:text="Giá tiền"
+                android:textStyle="bold"
+                android:gravity="end"/>
         </LinearLayout>
 
-    </LinearLayout>
+        <!-- Food Order List -->
+        <ListView
+            android:id="@+id/listViewOrderItems"
+            android:layout_width="match_parent"
+            android:layout_height="200dp"
+            android:layout_marginTop="4dp"
+            android:background="#F5F5F5"
+            android:visibility="gone"/>
 
+        <TextView
+            android:id="@+id/textViewEmptyOrderList"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:gravity="center"
+            android:text="Chưa có món ăn nào được gọi"
+            android:textStyle="italic"
+            android:visibility="gone"/>
+
+        <!-- Total Amount -->
+        <LinearLayout
+            android:id="@+id/totalContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginTop="16dp"
+            android:visibility="gone">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tổng tiền:"
+                android:textSize="16sp"
+                android:textStyle="bold"/>
+
+            <TextView
+                android:id="@+id/textViewTotalAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:gravity="end"
+                android:text="0 đ"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/holo_red_dark"/>
+        </LinearLayout>
+
+        <!-- Print Receipt Checkbox -->
+        <CheckBox
+            android:id="@+id/checkBoxPrintReceipt"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="In hóa đơn"
+            android:visibility="gone"/>
+
+        <!-- Checkout Button -->
+        <Button
+            android:id="@+id/buttonCheckout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:backgroundTint="@android:color/holo_green_dark"
+            android:text="Thanh toán"
+            android:textColor="@android:color/white"
+            android:visibility="gone"/>
+
+    </LinearLayout>
 </ScrollView> 

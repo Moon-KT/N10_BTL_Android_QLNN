@@ -156,9 +156,19 @@ public class TableListActivity extends AppCompatActivity implements TableAdapter
 
     @Override
     public void onTableClick(Table table, int position) {
+        // Open table detail in view mode
+        Intent intent = new Intent(TableListActivity.this, TableDetailActivity.class);
+        intent.putExtra("table", table);
+        intent.putExtra("viewMode", true); // Set view mode flag
+        startActivity(intent);
+    }
+
+    @Override
+    public void onTableLongClick(Table table, int position) {
         // Open table detail for editing
         Intent intent = new Intent(TableListActivity.this, TableDetailActivity.class);
         intent.putExtra("table", table);
+        // Don't set the viewMode flag to open in edit mode
         startActivityForResult(intent, REQUEST_EDIT_TABLE);
     }
 

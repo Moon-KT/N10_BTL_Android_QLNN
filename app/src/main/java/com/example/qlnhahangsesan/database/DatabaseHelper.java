@@ -29,7 +29,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
 
     // Database Info
     private static final String DATABASE_NAME = "SesanRestaurantDB";
-    private static final int DATABASE_VERSION = 3;
+    private static final int DATABASE_VERSION = 5;
 
     // Table Names
     private static final String TABLE_USERS = "users";
@@ -71,6 +71,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     private static final String KEY_TABLE_CAPACITY = "capacity";
     private static final String KEY_TABLE_STATUS = "status";
     private static final String KEY_TABLE_NOTE = "note";
+    private static final String KEY_TABLE_TYPE = "table_type";
 
     // Daily Menu Table Columns
     private static final String KEY_DAILY_MENU_ID = "id";
@@ -122,7 +123,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_EMPLOYEE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
                 KEY_EMPLOYEE_NAME + " TEXT," +
                 KEY_EMPLOYEE_POSITION + " TEXT," +
-                KEY_EMPLOYEE_PHONE + " TEXT," +
+                KEY_EMPLOYEE_PHONE + " TEXT UNIQUE," +
                 KEY_EMPLOYEE_EMAIL + " TEXT," +
                 KEY_EMPLOYEE_ADDRESS + " TEXT," +
                 KEY_EMPLOYEE_SALARY + " REAL," +
@@ -146,7 +147,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 KEY_TABLE_NAME + " TEXT," +
                 KEY_TABLE_CAPACITY + " INTEGER," +
                 KEY_TABLE_STATUS + " TEXT," +
-                KEY_TABLE_NOTE + " TEXT" +
+                KEY_TABLE_NOTE + " TEXT," +
+                KEY_TABLE_TYPE + " TEXT" +
                 ")";
 
         String CREATE_DAILY_MENU_TABLE = "CREATE TABLE " + TABLE_DAILY_MENU +
@@ -196,7 +198,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     KEY_TABLE_NAME + " TEXT," +
                     KEY_TABLE_CAPACITY + " INTEGER," +
                     KEY_TABLE_STATUS + " TEXT," +
-                    KEY_TABLE_NOTE + " TEXT" +
+                    KEY_TABLE_NOTE + " TEXT," +
+                    KEY_TABLE_TYPE + " TEXT" +
                     ")";
             db.execSQL(CREATE_TABLES_TABLE);
         }
@@ -213,6 +216,68 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     "FOREIGN KEY(" + KEY_DAILY_MENU_FOOD_ID + ") REFERENCES " + TABLE_FOODS + "(" + KEY_FOOD_ID + ")" +
                     ")";
             db.execSQL(CREATE_DAILY_MENU_TABLE);
+        }
+        
+        if (oldVersion < 4) {
+            // Upgrade the employees table to make phone numbers unique
+            try {
+                // Create a new temporary table with unique phone field
+                String CREATE_EMPLOYEES_TEMP_TABLE = "CREATE TABLE employees_temp" +
+                    "(" +
+                    KEY_EMPLOYEE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    KEY_EMPLOYEE_NAME + " TEXT," +
+                    KEY_EMPLOYEE_POSITION + " TEXT," +
+                    KEY_EMPLOYEE_PHONE + " TEXT UNIQUE," +
+                    KEY_EMPLOYEE_EMAIL + " TEXT," +
+                    KEY_EMPLOYEE_ADDRESS + " TEXT," +
+                    KEY_EMPLOYEE_SALARY + " REAL," +
+                    KEY_EMPLOYEE_START_DATE + " TEXT" +
+                    ")";
+                db.execSQL(CREATE_EMPLOYEES_TEMP_TABLE);
+                
+                // Copy data from old table to new table, ignoring duplicates
+                db.execSQL("INSERT OR IGNORE INTO employees_temp SELECT * FROM " + TABLE_EMPLOYEES);
+                
+                // Drop old table
+                db.execSQL("DROP TABLE " + TABLE_EMPLOYEES);
+                
+                // Rename new table
+                db.execSQL("ALTER TABLE employees_temp RENAME TO " + TABLE_EMPLOYEES);
+                
+                Log.d(TAG, "Successfully upgraded employees table to enforce unique phone numbers");
+            } catch (Exception e) {
+                Log.e(TAG, "Error upgrading employees table", e);
+            }
+        }
+        
+        if (oldVersion < 5) {
+            // Upgrade tables table to add table_type column and make table name unique
+            try {
+                // Create a new temporary table with the new structure
+                String CREATE_TABLES_TEMP_TABLE = "CREATE TABLE tables_temp" +
+                    "(" +
+                    KEY_TABLE_ID + " INTEGER PRIMARY KEY AUTOINCREMENT," +
+                    KEY_TABLE_NAME + " TEXT UNIQUE," +
+                    KEY_TABLE_CAPACITY + " INTEGER," +
+                    KEY_TABLE_STATUS + " TEXT," +
+                    KEY_TABLE_NOTE + " TEXT," +
+                    KEY_TABLE_TYPE + " TEXT" +
+                    ")";
+                db.execSQL(CREATE_TABLES_TEMP_TABLE);
+                
+                // Copy data from old table to new table, setting default table type as "Thường"
+                db.execSQL("INSERT OR IGNORE INTO tables_temp(id, name, capacity, status, note, table_type) SELECT id, name, capacity, status, note, 'Thường' FROM " + TABLE_TABLES);
+                
+                // Drop old table
+                db.execSQL("DROP TABLE " + TABLE_TABLES);
+                
+                // Rename new table
+                db.execSQL("ALTER TABLE tables_temp RENAME TO " + TABLE_TABLES);
+                
+                Log.d(TAG, "Successfully upgraded tables table to add table_type column and make table name unique");
+            } catch (Exception e) {
+                Log.e(TAG, "Error upgrading tables table", e);
+            }
         }
     }
 
@@ -284,7 +349,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             employeeId = db.insertOrThrow(TABLE_EMPLOYEES, null, values);
             db.setTransactionSuccessful();
         } catch (Exception e) {
-            // Error in between database transaction
+            // Kiểm tra xem lỗi có phải do trùng số điện thoại
+            Log.e(TAG, "Error adding employee", e);
         } finally {
             db.endTransaction();
         }
@@ -313,7 +379,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             rowsAffected = db.update(TABLE_EMPLOYEES, values, selection, selectionArgs);
             db.setTransactionSuccessful();
         } catch (Exception e) {
-            // Error in between database transaction
+            // Kiểm tra xem lỗi có phải do trùng số điện thoại
+            Log.e(TAG, "Error updating employee", e);
         } finally {
             db.endTransaction();
         }
@@ -494,7 +561,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Food food = new Food();
                     food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                     food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                    food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                    
+                    // Parse categories from comma-separated string
+                    String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                    food.setCategory(categoryStr); // This method now handles multiple categories
+                    
                     food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                     food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                     food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -518,8 +589,10 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<Food> foods = new ArrayList<>();
         
         SQLiteDatabase db = getReadableDatabase();
-        String selection = KEY_FOOD_CATEGORY + " = ?";
-        String[] selectionArgs = {category};
+        
+        // Modified to find foods that contain the specified category
+        String selection = KEY_FOOD_CATEGORY + " LIKE ?";
+        String[] selectionArgs = {"%" + category + "%"};
         
         Cursor cursor = db.query(TABLE_FOODS, null, selection, selectionArgs, null, null, null);
         
@@ -529,7 +602,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Food food = new Food();
                     food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                     food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                    food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                    
+                    // Parse categories from comma-separated string
+                    String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                    food.setCategory(categoryStr); // This method now handles multiple categories
+                    
                     food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                     food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                     food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -563,7 +640,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 food = new Food();
                 food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                 food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                
+                // Parse categories from comma-separated string
+                String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                food.setCategory(categoryStr); // This method now handles multiple categories
+                
                 food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                 food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                 food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -607,14 +688,17 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Search foods by name or description
     public List<Food> searchFoods(String query) {
         List<Food> foods = new ArrayList<>();
+        
         SQLiteDatabase db = getReadableDatabase();
-        
-        // Create search query with LIKE for both name and description
         String searchQuery = "%" + query + "%";
-        String selection = KEY_FOOD_NAME + " LIKE ? OR " + KEY_FOOD_DESCRIPTION + " LIKE ?";
-        String[] selectionArgs = {searchQuery, searchQuery};
         
-        Cursor cursor = db.query(TABLE_FOODS, null, selection, selectionArgs, null, null, KEY_FOOD_NAME);
+        String selection = KEY_FOOD_NAME + " LIKE ? OR " +
+                          KEY_FOOD_CATEGORY + " LIKE ? OR " +
+                          KEY_FOOD_DESCRIPTION + " LIKE ?";
+        
+        String[] selectionArgs = {searchQuery, searchQuery, searchQuery};
+        
+        Cursor cursor = db.query(TABLE_FOODS, null, selection, selectionArgs, null, null, null);
         
         try {
             if (cursor.moveToFirst()) {
@@ -622,7 +706,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Food food = new Food();
                     food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                     food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                    food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                    
+                    // Parse categories from comma-separated string
+                    String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                    food.setCategory(categoryStr); // This method now handles multiple categories
+                    
                     food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                     food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                     food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -632,7 +720,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
-            // Error handling
+            // Error processing cursor
         } finally {
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
@@ -645,9 +733,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Get foods sorted by criteria
     public List<Food> getFoodsSorted(String sortBy, boolean ascending) {
         List<Food> foods = new ArrayList<>();
+        
         SQLiteDatabase db = getReadableDatabase();
         
-        // Determine sort column
         String orderBy;
         switch (sortBy) {
             case "name":
@@ -661,11 +749,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 break;
             default:
                 orderBy = KEY_FOOD_ID;
-                break;
         }
         
-        // Add ASC or DESC
-        orderBy += ascending ? " ASC" : " DESC";
+        if (!ascending) {
+            orderBy += " DESC";
+        }
         
         Cursor cursor = db.query(TABLE_FOODS, null, null, null, null, null, orderBy);
         
@@ -675,7 +763,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Food food = new Food();
                     food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                     food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                    food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                    
+                    // Parse categories from comma-separated string
+                    String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                    food.setCategory(categoryStr); // This method now handles multiple categories
+                    
                     food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                     food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                     food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -685,7 +777,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
-            // Error handling
+            // Error processing cursor
         } finally {
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
@@ -698,9 +790,9 @@ public class DatabaseHelper extends SQLiteOpenHelper {
     // Get foods by category sorted by criteria
     public List<Food> getFoodsByCategorySorted(String category, String sortBy, boolean ascending) {
         List<Food> foods = new ArrayList<>();
+        
         SQLiteDatabase db = getReadableDatabase();
         
-        // Determine sort column
         String orderBy;
         switch (sortBy) {
             case "name":
@@ -711,14 +803,15 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 break;
             default:
                 orderBy = KEY_FOOD_ID;
-                break;
         }
         
-        // Add ASC or DESC
-        orderBy += ascending ? " ASC" : " DESC";
+        if (!ascending) {
+            orderBy += " DESC";
+        }
         
-        String selection = KEY_FOOD_CATEGORY + " = ?";
-        String[] selectionArgs = {category};
+        // Modified to find foods that contain the specified category
+        String selection = KEY_FOOD_CATEGORY + " LIKE ?";
+        String[] selectionArgs = {"%" + category + "%"};
         
         Cursor cursor = db.query(TABLE_FOODS, null, selection, selectionArgs, null, null, orderBy);
         
@@ -728,7 +821,11 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Food food = new Food();
                     food.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)));
                     food.setName(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)));
-                    food.setCategory(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)));
+                    
+                    // Parse categories from comma-separated string
+                    String categoryStr = cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY));
+                    food.setCategory(categoryStr); // This method now handles multiple categories
+                    
                     food.setPrice(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)));
                     food.setDescription(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)));
                     food.setImageUrl(cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)));
@@ -738,7 +835,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
-            // Error handling
+            // Error processing cursor
         } finally {
             if (cursor != null && !cursor.isClosed()) {
                 cursor.close();
@@ -748,29 +845,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return foods;
     }
 
-    // Table table methods
-    public long addTable(Table table) {
-        SQLiteDatabase db = getWritableDatabase();
-        long tableId = -1;
-
-        db.beginTransaction();
-        try {
-            ContentValues values = new ContentValues();
-            values.put(KEY_TABLE_NAME, table.getName());
-            values.put(KEY_TABLE_CAPACITY, table.getCapacity());
-            values.put(KEY_TABLE_STATUS, table.getStatus());
-            values.put(KEY_TABLE_NOTE, table.getNote());
-
-            tableId = db.insertOrThrow(TABLE_TABLES, null, values);
-            db.setTransactionSuccessful();
-        } catch (Exception e) {
-            // Error in between database transaction
-        } finally {
-            db.endTransaction();
-        }
-
-        return tableId;
-    }
+        // Table table methods    public long addTable(Table table) {        SQLiteDatabase db = getWritableDatabase();        long tableId = -1;        db.beginTransaction();        try {            ContentValues values = new ContentValues();            values.put(KEY_TABLE_NAME, table.getName());            values.put(KEY_TABLE_CAPACITY, table.getCapacity());            values.put(KEY_TABLE_STATUS, table.getStatus());            values.put(KEY_TABLE_NOTE, table.getNote());            values.put(KEY_TABLE_TYPE, table.getTableType());            tableId = db.insertOrThrow(TABLE_TABLES, null, values);            db.setTransactionSuccessful();        } catch (Exception e) {            // Error in between database transaction        } finally {            db.endTransaction();        }        return tableId;    }
     
     public boolean updateTable(Table table) {
         SQLiteDatabase db = getWritableDatabase();
@@ -783,6 +858,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             values.put(KEY_TABLE_CAPACITY, table.getCapacity());
             values.put(KEY_TABLE_STATUS, table.getStatus());
             values.put(KEY_TABLE_NOTE, table.getNote());
+            values.put(KEY_TABLE_TYPE, table.getTableType());
 
             String selection = KEY_TABLE_ID + " = ?";
             String[] selectionArgs = {String.valueOf(table.getId())};
@@ -858,6 +934,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     table.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_STATUS)));
                     table.setNote(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_NOTE)));
                     
+                    // Get tableType, default to "Thường" if not present
+                    try {
+                        table.setTableType(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_TYPE)));
+                    } catch (Exception e) {
+                        table.setTableType("Thường");
+                    }
+                    
                     tables.add(table);
                 } while (cursor.moveToNext());
             }
@@ -891,6 +974,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     table.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_STATUS)));
                     table.setNote(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_NOTE)));
                     
+                    // Get tableType, default to "Thường" if not present
+                    try {
+                        table.setTableType(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_TYPE)));
+                    } catch (Exception e) {
+                        table.setTableType("Thường");
+                    }
+                    
                     tables.add(table);
                 } while (cursor.moveToNext());
             }
@@ -922,6 +1012,13 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                 table.setCapacity(cursor.getInt(cursor.getColumnIndexOrThrow(KEY_TABLE_CAPACITY)));
                 table.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_STATUS)));
                 table.setNote(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_NOTE)));
+                
+                // Get tableType, default to "Thường" if not present
+                try {
+                    table.setTableType(cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_TYPE)));
+                } catch (Exception e) {
+                    table.setTableType("Thường");
+                }
             }
         } catch (Exception e) {
             // Error processing cursor
@@ -939,6 +1036,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         SQLiteDatabase db = getWritableDatabase();
         long menuId = -1;
 
+        // Kiểm tra xem món ăn đã tồn tại trong menu của ngày này chưa
+        if (isFoodInDailyMenu(dailyMenu.getFoodId(), dailyMenu.getDate())) {
+            // Món ăn đã tồn tại trong menu, không thêm lại
+            return -1;
+        }
+
         db.beginTransaction();
         try {
             ContentValues values = new ContentValues();
@@ -951,6 +1054,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             db.setTransactionSuccessful();
         } catch (Exception e) {
             // Error in between database transaction
+            Log.e(TAG, "Error adding daily menu item", e);
         } finally {
             db.endTransaction();
         }
@@ -1942,5 +2046,152 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
         
         return name;
+    }
+
+    /**
+     * Kiểm tra xem số điện thoại có tồn tại trong bảng employees hay không
+     * @param phone Số điện thoại cần kiểm tra
+     * @param currentEmployeeId ID của nhân viên đang được chỉnh sửa (để loại trừ chính nhân viên đó khỏi kiểm tra)
+     * @return true nếu số điện thoại đã tồn tại ở nhân viên khác, false nếu chưa tồn tại
+     */
+    public boolean isPhoneNumberExists(String phone, long currentEmployeeId) {
+        SQLiteDatabase db = getReadableDatabase();
+        String selection;
+        String[] selectionArgs;
+        
+        // Nếu đang chỉnh sửa nhân viên, loại trừ nhân viên hiện tại khỏi kiểm tra
+        if (currentEmployeeId > 0) {
+            selection = KEY_EMPLOYEE_PHONE + " = ? AND " + KEY_EMPLOYEE_ID + " != ?";
+            selectionArgs = new String[]{phone, String.valueOf(currentEmployeeId)};
+        } else {
+            selection = KEY_EMPLOYEE_PHONE + " = ?";
+            selectionArgs = new String[]{phone};
+        }
+        
+        Cursor cursor = db.query(TABLE_EMPLOYEES, new String[]{KEY_EMPLOYEE_ID}, 
+                                  selection, selectionArgs, null, null, null);
+        int count = cursor.getCount();
+        cursor.close();
+        
+        return count > 0;
+    }
+
+    /**
+     * Kiểm tra xem một món ăn đã tồn tại trong menu của một ngày cụ thể hay chưa
+     * @param foodId ID của món ăn cần kiểm tra
+     * @param date Ngày cần kiểm tra (định dạng yyyy-MM-dd)
+     * @return true nếu món ăn đã tồn tại trong menu ngày đó, false nếu chưa tồn tại
+     */
+    public boolean isFoodInDailyMenu(long foodId, String date) {
+        SQLiteDatabase db = getReadableDatabase();
+        boolean exists = false;
+        
+        String selection = KEY_DAILY_MENU_FOOD_ID + " = ? AND " + KEY_DAILY_MENU_DATE + " = ?";
+        String[] selectionArgs = {String.valueOf(foodId), date};
+        
+        Cursor cursor = db.query(TABLE_DAILY_MENU, new String[]{KEY_DAILY_MENU_ID}, 
+                                  selection, selectionArgs, null, null, null);
+        
+        exists = cursor != null && cursor.getCount() > 0;
+        
+        if (cursor != null) {
+            cursor.close();
+        }
+        
+        return exists;
+    }
+
+    /**
+     * Kiểm tra xem số bàn đã tồn tại hay chưa
+     * @param tableNumber Số bàn cần kiểm tra
+     * @param currentTableId ID của bàn đang được chỉnh sửa (để loại trừ khi kiểm tra)
+     * @return true nếu số bàn đã tồn tại, false nếu chưa tồn tại
+     */
+    public boolean isTableNumberExists(String tableNumber, long currentTableId) {
+        SQLiteDatabase db = getReadableDatabase();
+        String selection;
+        String[] selectionArgs;
+        
+        // Nếu đang chỉnh sửa bàn, loại trừ bàn hiện tại khỏi kiểm tra
+        if (currentTableId > 0) {
+            selection = KEY_TABLE_NAME + " = ? AND " + KEY_TABLE_ID + " != ?";
+            selectionArgs = new String[]{tableNumber, String.valueOf(currentTableId)};
+        } else {
+            selection = KEY_TABLE_NAME + " = ?";
+            selectionArgs = new String[]{tableNumber};
+        }
+        
+        Cursor cursor = db.query(TABLE_TABLES, new String[]{KEY_TABLE_ID}, 
+                                  selection, selectionArgs, null, null, null);
+        int count = cursor.getCount();
+        cursor.close();
+        
+        return count > 0;
+    }
+
+    public long addTable(Table table) {
+        // Kiểm tra số bàn đã tồn tại chưa
+        if (isTableNumberExists(table.getName(), 0)) {
+            return -1; // Số bàn đã tồn tại
+        }
+        
+        SQLiteDatabase db = getWritableDatabase();
+        long tableId = -1;
+        db.beginTransaction();
+        try {
+            ContentValues values = new ContentValues();
+            values.put(KEY_TABLE_NAME, table.getName());
+            values.put(KEY_TABLE_CAPACITY, table.getCapacity());
+            values.put(KEY_TABLE_STATUS, table.getStatus());
+            values.put(KEY_TABLE_NOTE, table.getNote());
+            values.put(KEY_TABLE_TYPE, table.getTableType());
+            tableId = db.insertOrThrow(TABLE_TABLES, null, values);
+            db.setTransactionSuccessful();
+        } catch (Exception e) {
+            // Error in between database transaction
+        } finally {
+            db.endTransaction();
+        }
+        return tableId;
+    }
+    
+    
+
+    /**
+     * Update an order item in the database
+     */
+    public boolean updateOrderItem(OrderItem item) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        
+        values.put(KEY_ORDER_ITEM_ORDER_ID, item.getOrderId());
+        values.put(KEY_ORDER_ITEM_FOOD_ID, item.getFoodId());
+        values.put(KEY_ORDER_ITEM_QUANTITY, item.getQuantity());
+        values.put(KEY_ORDER_ITEM_PRICE, item.getPrice());
+        
+        String selection = KEY_ORDER_ITEM_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(item.getId())};
+        
+        int rows = db.update(TABLE_ORDER_ITEMS, values, selection, selectionArgs);
+        return rows > 0;
+    }
+    
+    /**
+     * Update an order in the database
+     */
+    public boolean updateOrder(Order order) {
+        SQLiteDatabase db = getWritableDatabase();
+        ContentValues values = new ContentValues();
+        
+        values.put(KEY_ORDER_TABLE_ID, order.getTableId());
+        values.put(KEY_ORDER_DATE, order.getOrderDate().getTime());
+        values.put(KEY_ORDER_TOTAL_AMOUNT, order.getTotalAmount());
+        values.put(KEY_ORDER_STATUS, order.getStatus());
+        
+        String selection = KEY_ORDER_ID + " = ?";
+        String[] selectionArgs = {String.valueOf(order.getId())};
+        
+        int rows = db.update(TABLE_ORDERS, values, selection, selectionArgs);
+        return rows > 0;
     }
 } 

@@ -206,6 +206,14 @@ public class EmployeeDetailActivity extends AppCompatActivity {
             return;
         }
 
+        // Kiểm tra số điện thoại đã tồn tại hay chưa
+        long currentEmployeeId = isEditMode && employee != null ? employee.getId() : -1;
+        if (databaseHelper.isPhoneNumberExists(phone, currentEmployeeId)) {
+            editTextPhone.setError("Số điện thoại này đã được sử dụng bởi nhân viên khác");
+            editTextPhone.requestFocus();
+            return;
+        }
+
         // Validate email (must be in format aaa@gmail.com)
         if (!TextUtils.isEmpty(email)) {
             if (!Pattern.matches("^[a-zA-Z0-9._%+-]+@gmail\\.com$", email)) {

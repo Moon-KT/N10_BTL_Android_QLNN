@@ -27,6 +27,7 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
 
     public interface OnTableClickListener {
         void onTableClick(Table table, int position);
+        void onTableLongClick(Table table, int position);
     }
 
     public TableAdapter(Context context, List<Table> tableList, OnTableClickListener listener) {
@@ -102,6 +103,14 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
             if (listener != null) {
                 listener.onTableClick(table, position);
             }
+        });
+        
+        holder.itemView.setOnLongClickListener(v -> {
+            if (listener != null) {
+                listener.onTableLongClick(table, position);
+                return true;
+            }
+            return false;
         });
     }
 

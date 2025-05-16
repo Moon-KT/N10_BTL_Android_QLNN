@@ -316,6 +316,12 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
                 return;
             }
             
+            // Kiểm tra xem món đã tồn tại trong menu của ngày này chưa
+            if (databaseHelper.isFoodInDailyMenu(food.getId(), selectedDate)) {
+                Toast.makeText(this, "Món " + food.getName() + " đã tồn tại trong menu ngày này!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             // Show dialog to add to daily menu
             showAddToDailyMenuDialog(food);
         } else {

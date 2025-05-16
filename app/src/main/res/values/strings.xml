@@ -18,9 +18,11 @@
     <string name="add_table">Thêm bàn</string>
     <string name="edit_table">Chỉnh sửa bàn</string>
     <string name="table_name">Tên bàn</string>
+    <string name="table_number">Số bàn</string>
     <string name="table_capacity">Sức chứa: %d người</string>
     <string name="table_status">Trạng thái</string>
     <string name="table_note">Ghi chú</string>
+    <string name="table_type">Loại bàn</string>
     <string name="status_available">Trống</string>
     <string name="status_reserved">Đã đặt</string>
     <string name="status_occupied">Đang phục vụ</string>

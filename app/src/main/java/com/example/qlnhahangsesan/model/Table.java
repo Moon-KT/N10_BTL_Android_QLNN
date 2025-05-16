@@ -8,23 +8,26 @@ public class Table implements Serializable {
     private int capacity;
     private String status; // "Trống", "Đã đặt", "Đang phục vụ"
     private String note;
+    private String tableType; // "VIP", "Thường"
 
     public Table() {
     }
 
-    public Table(String name, int capacity, String status, String note) {
+    public Table(String name, int capacity, String status, String note, String tableType) {
         this.name = name;
         this.capacity = capacity;
         this.status = status;
         this.note = note;
+        this.tableType = tableType;
     }
 
-    public Table(long id, String name, int capacity, String status, String note) {
+    public Table(long id, String name, int capacity, String status, String note, String tableType) {
         this.id = id;
         this.name = name;
         this.capacity = capacity;
         this.status = status;
         this.note = note;
+        this.tableType = tableType;
     }
 
     public long getId() {
@@ -65,6 +68,14 @@ public class Table implements Serializable {
 
     public void setNote(String note) {
         this.note = note;
+    }
+    
+    public String getTableType() {
+        return tableType;
+    }
+    
+    public void setTableType(String tableType) {
+        this.tableType = tableType;
     }
 
     @Override

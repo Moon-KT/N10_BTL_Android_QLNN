@@ -57,37 +57,11 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
         
         holder.textViewName.setText(food.getName());
         
-        // Set up the spinner for food categories
-        ArrayAdapter<FoodCategory> categoryAdapter = new ArrayAdapter<>(
-                context, 
-                android.R.layout.simple_spinner_item, 
-                FoodCategory.values());
-        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        holder.spinnerCategory.setAdapter(categoryAdapter);
-        
-        // Set selected category in spinner
-        if (food.getCategory() != null) {
-            for (int i = 0; i < FoodCategory.values().length; i++) {
-                if (FoodCategory.values()[i] == food.getCategory()) {
-                    holder.spinnerCategory.setSelection(i);
-                    break;
-                }
-            }
+        // Display categories text
+        if (holder.textViewCategories != null) {
+            holder.textViewCategories.setText("Loại: " + food.getCategoryString());
+            holder.textViewCategories.setVisibility(View.VISIBLE);
         }
-        
-        // Add listener to spinner
-        holder.spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-            @Override
-            public void onItemSelected(AdapterView<?> parent, View view, int spinnerPosition, long id) {
-                // Update food category when user changes selection
-                food.setCategory(FoodCategory.values()[spinnerPosition]);
-            }
-
-            @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // Do nothing
-            }
-        });
         
         holder.textViewPrice.setText(currencyFormat.format(food.getPrice()));
         
@@ -156,17 +130,17 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
     public static class FoodViewHolder extends RecyclerView.ViewHolder {
         public ImageView imageViewFood;
         public TextView textViewName;
-        public Spinner spinnerCategory;
         public TextView textViewPrice;
         public TextView textViewAvailability;
+        public TextView textViewCategories;
 
         public FoodViewHolder(View view) {
             super(view);
             imageViewFood = view.findViewById(R.id.imageViewFood);
             textViewName = view.findViewById(R.id.textViewFoodName);
-            spinnerCategory = view.findViewById(R.id.spinnerFoodCategory);
             textViewPrice = view.findViewById(R.id.textViewFoodPrice);
             textViewAvailability = view.findViewById(R.id.textViewFoodAvailability);
+            textViewCategories = view.findViewById(R.id.textViewFoodCategories);
         }
     }
 } 
