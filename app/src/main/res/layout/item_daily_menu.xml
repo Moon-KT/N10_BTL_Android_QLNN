@@ -60,14 +60,6 @@
                 android:orientation="horizontal">
 
                 <TextView
-                    android:id="@+id/textViewQuantity"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Số lượng: 20"
-                    android:textSize="14sp" />
-
-                <TextView
                     android:id="@+id/textViewFeatured"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"

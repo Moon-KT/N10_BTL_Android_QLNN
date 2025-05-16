@@ -2,6 +2,7 @@ package com.example.qlnhahangsesan;
 
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
@@ -11,6 +12,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -48,7 +50,6 @@ public class TableDetailActivity extends AppCompatActivity {
     private Button buttonSave;
     private Button buttonDelete;
     private Button buttonOrder;
-    private Button buttonOrderHistory;
     private LinearLayout orderDetailsLayout;
     private ListView listViewOrderItems;
     private TextView textViewOrderTotal;
@@ -113,7 +114,6 @@ public class TableDetailActivity extends AppCompatActivity {
         buttonOrder.setOnClickListener(v -> onOrderTable());
         buttonCheckout.setOnClickListener(v -> confirmCheckout());
         buttonCheckoutStandalone.setOnClickListener(v -> confirmCheckout());
-        buttonOrderHistory.setOnClickListener(v -> showOrderHistory());
         
         // Cập nhật giao diện khi người dùng thay đổi trạng thái
         spinnerStatus.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
@@ -138,7 +138,6 @@ public class TableDetailActivity extends AppCompatActivity {
         buttonSave = findViewById(R.id.buttonSave);
         buttonDelete = findViewById(R.id.buttonDelete);
         buttonOrder = findViewById(R.id.buttonOrder);
-        buttonOrderHistory = findViewById(R.id.buttonOrderHistory);
         orderDetailsLayout = findViewById(R.id.orderDetailsLayout);
         listViewOrderItems = findViewById(R.id.listViewOrderItems);
         textViewOrderTotal = findViewById(R.id.textViewOrderTotal);
@@ -411,18 +410,46 @@ public class TableDetailActivity extends AppCompatActivity {
         
         Log.d("TableDetailActivity", "Confirming checkout for order ID: " + currentOrder.getId());
         
-        // Hiển thị xác nhận thanh toán
+        // Lấy danh sách các món hàng
+        List<OrderItem> items = databaseHelper.getOrderItemsForOrder(currentOrder.getId());
+        
+        if (items.isEmpty()) {
+            Toast.makeText(this, "Đơn hàng này không có món nào", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        
+        // Hiển thị xác nhận thanh toán với chi tiết đơn hàng
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Xác nhận thanh toán");
         
-        // Tạo nội dung dialog với thông tin chi tiết đơn hàng
-        StringBuilder message = new StringBuilder();
-        message.append("Thông tin đơn hàng: \n\n");
-        message.append("Bàn: ").append(currentTable.getName()).append("\n");
-        message.append("Tổng tiền: ").append(currencyFormat.format(currentOrder.getTotalAmount())).append("\n\n");
-        message.append("Bạn có chắc chắn muốn thanh toán không?");
+        // Tạo view để hiển thị chi tiết
+        View view = getLayoutInflater().inflate(R.layout.dialog_order_details, null);
+        ListView listViewItems = view.findViewById(R.id.listViewOrderItemsDialog);
+        TextView textViewTotal = view.findViewById(R.id.textViewOrderTotalDialog);
         
-        builder.setMessage(message.toString());
+        // Thêm tiêu đề cho dialog
+        TextView textViewTableInfo = new TextView(this);
+        textViewTableInfo.setText("Bàn: " + currentTable.getName());
+        textViewTableInfo.setPadding(16, 16, 16, 0);
+        textViewTableInfo.setTextSize(16);
+        textViewTableInfo.setTextColor(getResources().getColor(R.color.purple_500));
+        textViewTableInfo.setTypeface(null, Typeface.BOLD);
+        
+        // Nếu view có parent, cần remove nó trước khi thêm vào dialog mới
+        if (textViewTableInfo.getParent() != null) {
+            ((ViewGroup) textViewTableInfo.getParent()).removeView(textViewTableInfo);
+        }
+        
+        // Tạo adapter cho danh sách món
+        OrderItemAdapter adapter = new OrderItemAdapter(this, items);
+        listViewItems.setAdapter(adapter);
+        
+        // Hiển thị tổng tiền
+        textViewTotal.setText(currencyFormat.format(currentOrder.getTotalAmount()));
+        
+        builder.setCustomTitle(textViewTableInfo);
+        builder.setView(view);
+        
         builder.setPositiveButton("Thanh toán", (dialog, which) -> {
             // Hiển thị dialog tiến trình
             AlertDialog progressDialog = new AlertDialog.Builder(this)
@@ -454,9 +481,9 @@ public class TableDetailActivity extends AppCompatActivity {
                     databaseHelper.updateTable(currentTable);
                     
                     // Cập nhật spinner
-                    ArrayAdapter adapter = (ArrayAdapter) spinnerStatus.getAdapter();
-                    for (int i = 0; i < adapter.getCount(); i++) {
-                        if (adapter.getItem(i).toString().equals(availableStatus)) {
+                    ArrayAdapter spinnerAdapter = (ArrayAdapter) spinnerStatus.getAdapter();
+                    for (int i = 0; i < spinnerAdapter.getCount(); i++) {
+                        if (spinnerAdapter.getItem(i).toString().equals(availableStatus)) {
                             spinnerStatus.setSelection(i);
                             break;
                         }
@@ -520,55 +547,13 @@ public class TableDetailActivity extends AppCompatActivity {
         }
     }
 
-    private void showOrderHistory() {
-        if (currentTable == null || currentTable.getId() <= 0) {
-            Toast.makeText(this, "Không thể xem lịch sử. Vui lòng lưu thông tin bàn trước.", Toast.LENGTH_SHORT).show();
-            return;
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
         }
-        
-        // Lấy tất cả đơn hàng của bàn này
-        List<Order> orderHistory = databaseHelper.getOrderHistoryForTable(currentTable.getId());
-        
-        if (orderHistory.isEmpty()) {
-            Toast.makeText(this, "Bàn này chưa có lịch sử đơn hàng nào", Toast.LENGTH_SHORT).show();
-            return;
-        }
-        
-        // Tạo dialog để hiển thị lịch sử
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Lịch sử đơn hàng - " + currentTable.getName());
-        
-        // Tạo adapter để hiển thị danh sách đơn hàng
-        ArrayAdapter<Order> adapter = new ArrayAdapter<Order>(this, android.R.layout.simple_list_item_1, orderHistory) {
-            @NonNull
-            @Override
-            public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
-                if (convertView == null) {
-                    convertView = LayoutInflater.from(getContext()).inflate(android.R.layout.simple_list_item_1, parent, false);
-                }
-                
-                Order order = getItem(position);
-                TextView textView = convertView.findViewById(android.R.id.text1);
-                
-                SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault());
-                
-                String orderInfo = "Đơn #" + order.getId() + " - " + dateFormat.format(order.getOrderDate()) + 
-                                  "\nTrạng thái: " + order.getStatus() +
-                                  "\nTổng tiền: " + currencyFormat.format(order.getTotalAmount());
-                textView.setText(orderInfo);
-                
-                return convertView;
-            }
-        };
-        
-        builder.setAdapter(adapter, (dialog, which) -> {
-            // Khi người dùng chọn một đơn hàng, hiển thị chi tiết đơn hàng đó
-            Order selectedOrder = orderHistory.get(which);
-            showOrderDetails(selectedOrder);
-        });
-        
-        builder.setNegativeButton("Đóng", null);
-        builder.show();
+        return super.onOptionsItemSelected(item);
     }
     
     private void showOrderDetails(Order order) {
@@ -599,14 +584,5 @@ public class TableDetailActivity extends AppCompatActivity {
         builder.setView(view);
         builder.setPositiveButton("Đóng", null);
         builder.show();
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
     }
 } 

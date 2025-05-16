@@ -1,6 +1,7 @@
 package com.example.qlnhahangsesan.adapter;
 
 import android.content.Context;
+import android.content.Intent;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -9,10 +10,14 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.qlnhahangsesan.DayOrdersActivity;
 import com.example.qlnhahangsesan.R;
 import com.example.qlnhahangsesan.model.StatisticItem;
 
 import java.text.NumberFormat;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Locale;
 
@@ -22,11 +27,19 @@ public class StatisticsAdapter extends RecyclerView.Adapter<StatisticsAdapter.St
     private List<StatisticItem> statisticsList;
     private boolean isMonetary;
     private NumberFormat numberFormat;
+    private int statisticType;
+    
+    private SimpleDateFormat dbDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+    private SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
-    public StatisticsAdapter(Context context, List<StatisticItem> statisticsList, boolean isMonetary) {
+    // Statistic types from StatisticsFragment
+    public static final int STATS_TYPE_REVENUE = 2;
+
+    public StatisticsAdapter(Context context, List<StatisticItem> statisticsList, boolean isMonetary, int statisticType) {
         this.context = context;
         this.statisticsList = statisticsList;
         this.isMonetary = isMonetary;
+        this.statisticType = statisticType;
         
         if (isMonetary) {
             this.numberFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
@@ -47,12 +60,33 @@ public class StatisticsAdapter extends RecyclerView.Adapter<StatisticsAdapter.St
     public void onBindViewHolder(@NonNull StatisticsViewHolder holder, int position) {
         StatisticItem item = statisticsList.get(position);
         
-        holder.textViewName.setText(item.getName());
+        // Format the name if it's a date
+        String displayName = item.getName();
+        try {
+            if (displayName.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                Date date = dbDateFormat.parse(displayName);
+                displayName = displayDateFormat.format(date);
+            }
+        } catch (ParseException e) {
+            // Use original name if parsing fails
+        }
+        
+        holder.textViewName.setText(displayName);
         
         if (isMonetary) {
             holder.textViewValue.setText(numberFormat.format(item.getValue()));
         } else {
             holder.textViewValue.setText(numberFormat.format(item.getIntValue()));
+        }
+        
+        // Set click listener for revenue statistics or other date-based statistics
+        if (statisticType == STATS_TYPE_REVENUE) {
+            holder.itemView.setOnClickListener(v -> {
+                // Open the DayOrdersActivity with the date
+                Intent intent = new Intent(context, DayOrdersActivity.class);
+                intent.putExtra("date", item.getName()); // Pass the original date format (yyyy-MM-dd)
+                context.startActivity(intent);
+            });
         }
     }
 

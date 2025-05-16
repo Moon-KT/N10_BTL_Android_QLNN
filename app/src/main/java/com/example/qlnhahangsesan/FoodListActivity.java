@@ -21,6 +21,7 @@ import com.example.qlnhahangsesan.adapter.FoodAdapter;
 import com.example.qlnhahangsesan.database.DatabaseHelper;
 import com.example.qlnhahangsesan.model.DailyMenu;
 import com.example.qlnhahangsesan.model.Food;
+import com.example.qlnhahangsesan.model.FoodCategory;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.tabs.TabLayout;
 
@@ -211,7 +212,7 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         if (!currentCategory.equals("Tất cả")) {
             List<Food> filteredResults = new ArrayList<>();
             for (Food food : searchResults) {
-                if (food.getCategory().equals(currentCategory)) {
+                if (food.getCategoryString().equals(currentCategory)) {
                     filteredResults.add(food);
                 }
             }
@@ -236,33 +237,20 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         // Add "All" tab
         tabLayoutCategories.addTab(tabLayoutCategories.newTab().setText("Tất cả"));
         
-        // Get all categories from database
-        categoryList = databaseHelper.getAllFoodCategories();
-        
-        // Add a tab for each category
-        for (String category : categoryList) {
-            tabLayoutCategories.addTab(tabLayoutCategories.newTab().setText(category));
+        // Add a tab for each FoodCategory value
+        for (FoodCategory category : FoodCategory.values()) {
+            tabLayoutCategories.addTab(tabLayoutCategories.newTab().setText(category.getDisplayName()));
         }
         
         // Set tab selected listener
         tabLayoutCategories.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
-                if (tab.getPosition() == 0) {
-                    currentCategory = "Tất cả";
-                    if (currentQuery.isEmpty()) {
-                        loadFoodsSorted();
-                    } else {
-                        performSearch(currentQuery);
-                    }
-                } else {
-                    currentCategory = tab.getText().toString();
-                    if (currentQuery.isEmpty()) {
-                        loadFoodsSorted();
-                    } else {
-                        performSearch(currentQuery);
-                    }
-                }
+                String selectedCategory = tab.getText().toString();
+                currentCategory = selectedCategory;
+                
+                // Load foods based on selected category
+                loadFoodsByCategory();
             }
 
             @Override
@@ -277,21 +265,37 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         });
     }
     
-    private void loadFoodsSorted() {
+    private void loadFoodsByCategory() {
         progressBar.setVisibility(View.VISIBLE);
         
-        // Load foods from database
-        List<Food> loadedFoods;
+        List<Food> foods;
+        
         if (currentCategory.equals("Tất cả")) {
-            loadedFoods = databaseHelper.getFoodsSorted(currentSortBy, isAscending);
+            foods = databaseHelper.getFoodsSorted(currentSortBy, isAscending);
         } else {
-            loadedFoods = databaseHelper.getFoodsByCategorySorted(currentCategory, currentSortBy, isAscending);
+            // Find the matching enum
+            FoodCategory selectedCategory = null;
+            for (FoodCategory category : FoodCategory.values()) {
+                if (category.getDisplayName().equals(currentCategory)) {
+                    selectedCategory = category;
+                    break;
+                }
+            }
+            
+            if (selectedCategory != null) {
+                foods = databaseHelper.getFoodsByCategorySorted(selectedCategory.getDisplayName(), currentSortBy, isAscending);
+            } else {
+                foods = new ArrayList<>();
+            }
         }
         
-        // Update UI
+        updateFoodList(foods);
+    }
+
+    private void updateFoodList(List<Food> foods) {
         foodList.clear();
-        if (loadedFoods != null && !loadedFoods.isEmpty()) {
-            foodList.addAll(loadedFoods);
+        if (foods != null && !foods.isEmpty()) {
+            foodList.addAll(foods);
             textViewEmpty.setVisibility(View.GONE);
         } else {
             textViewEmpty.setText(getString(R.string.no_foods));
@@ -305,6 +309,13 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
     @Override
     public void onFoodClick(Food food, int position) {
         if (forDailyMenu) {
+            // Kiểm tra trạng thái available của món ăn
+            if (!food.isAvailable()) {
+                // Hiển thị thông báo nếu món ăn đã hết
+                Toast.makeText(this, "Không thể thêm món " + food.getName() + " vào menu vì đã hết món!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
             // Show dialog to add to daily menu
             showAddToDailyMenuDialog(food);
         } else {
@@ -316,21 +327,12 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
     }
 
     private void showAddToDailyMenuDialog(Food food) {
-        // Create a dialog to set quantity and featured status
+        // Create a dialog to set featured status only
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_menu_item, null);
         androidx.appcompat.widget.SwitchCompat switchFeatured = dialogView.findViewById(R.id.switchFeatured);
-        com.google.android.material.slider.Slider sliderQuantity = dialogView.findViewById(R.id.sliderQuantity);
-        TextView textViewQuantity = dialogView.findViewById(R.id.textViewQuantity);
 
         // Set default values
         switchFeatured.setChecked(false);
-        sliderQuantity.setValue(10); // Default quantity
-        textViewQuantity.setText("Số lượng: 10");
-
-        // Update quantity text when slider changes
-        sliderQuantity.addOnChangeListener((slider, value, fromUser) -> {
-            textViewQuantity.setText(String.format("Số lượng: %d", (int) value));
-        });
 
         new AlertDialog.Builder(this)
                 .setTitle("Thêm " + food.getName() + " vào menu")
@@ -341,7 +343,8 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
                     dailyMenu.setDate(selectedDate);
                     dailyMenu.setFoodId(food.getId());
                     dailyMenu.setFeatured(switchFeatured.isChecked());
-                    dailyMenu.setQuantity((int) sliderQuantity.getValue());
+                    // Default quantity to 0 or remove if DB schema allows
+                    dailyMenu.setQuantity(0);
 
                     // Add to database
                     long id = databaseHelper.addDailyMenuItem(dailyMenu);
@@ -378,5 +381,13 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
             setResult(RESULT_OK);
         }
         super.finish();
+    }
+
+    private void loadFoodsSorted() {
+        if (currentQuery.isEmpty()) {
+            loadFoodsByCategory();
+        } else {
+            performSearch(currentQuery);
+        }
     }
 } 

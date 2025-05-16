@@ -114,15 +114,6 @@
             android:text="@string/order_food"
             android:textColor="@android:color/white" />
 
-        <Button
-            android:id="@+id/buttonOrderHistory"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:backgroundTint="#03A9F4"
-            android:text="Xem lịch sử đơn hàng"
-            android:textColor="@android:color/white" />
-            
         <!-- Standalone checkout button -->
         <Button
             android:id="@+id/buttonCheckoutStandalone"

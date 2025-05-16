@@ -12,6 +12,7 @@ public class Order implements Serializable {
     private double totalAmount;
     private String status; // "Đang xử lý", "Đã thanh toán", "Đã hủy"
     private List<OrderItem> orderItems;
+    private String tableName; // Tên bàn - không lưu vào DB, chỉ để hiển thị
 
     public Order() {
         this.orderItems = new ArrayList<>();
@@ -97,5 +98,13 @@ public class Order implements Serializable {
             total += item.getTotalPrice();
         }
         this.totalAmount = total;
+    }
+
+    public String getTableName() {
+        return tableName;
+    }
+
+    public void setTableName(String tableName) {
+        this.tableName = tableName;
     }
 } 

@@ -5,7 +5,10 @@ import android.net.Uri;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,6 +19,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.request.RequestOptions;
 import com.example.qlnhahangsesan.R;
 import com.example.qlnhahangsesan.model.Food;
+import com.example.qlnhahangsesan.model.FoodCategory;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -52,7 +56,39 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
         Food food = foodList.get(position);
         
         holder.textViewName.setText(food.getName());
-        holder.textViewCategory.setText(food.getCategory());
+        
+        // Set up the spinner for food categories
+        ArrayAdapter<FoodCategory> categoryAdapter = new ArrayAdapter<>(
+                context, 
+                android.R.layout.simple_spinner_item, 
+                FoodCategory.values());
+        categoryAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        holder.spinnerCategory.setAdapter(categoryAdapter);
+        
+        // Set selected category in spinner
+        if (food.getCategory() != null) {
+            for (int i = 0; i < FoodCategory.values().length; i++) {
+                if (FoodCategory.values()[i] == food.getCategory()) {
+                    holder.spinnerCategory.setSelection(i);
+                    break;
+                }
+            }
+        }
+        
+        // Add listener to spinner
+        holder.spinnerCategory.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int spinnerPosition, long id) {
+                // Update food category when user changes selection
+                food.setCategory(FoodCategory.values()[spinnerPosition]);
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {
+                // Do nothing
+            }
+        });
+        
         holder.textViewPrice.setText(currencyFormat.format(food.getPrice()));
         
         // Set availability status
@@ -120,7 +156,7 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
     public static class FoodViewHolder extends RecyclerView.ViewHolder {
         public ImageView imageViewFood;
         public TextView textViewName;
-        public TextView textViewCategory;
+        public Spinner spinnerCategory;
         public TextView textViewPrice;
         public TextView textViewAvailability;
 
@@ -128,7 +164,7 @@ public class FoodAdapter extends RecyclerView.Adapter<FoodAdapter.FoodViewHolder
             super(view);
             imageViewFood = view.findViewById(R.id.imageViewFood);
             textViewName = view.findViewById(R.id.textViewFoodName);
-            textViewCategory = view.findViewById(R.id.textViewFoodCategory);
+            spinnerCategory = view.findViewById(R.id.spinnerFoodCategory);
             textViewPrice = view.findViewById(R.id.textViewFoodPrice);
             textViewAvailability = view.findViewById(R.id.textViewFoodAvailability);
         }

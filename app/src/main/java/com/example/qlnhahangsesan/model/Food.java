@@ -5,16 +5,17 @@ import java.io.Serializable;
 public class Food implements Serializable {
     private long id;
     private String name;
-    private String category;
+    private FoodCategory category;
     private double price;
     private String description;
     private String imageUrl;
     private boolean available;
 
     public Food() {
+        this.category = FoodCategory.MON_CHINH; // Default category
     }
 
-    public Food(String name, String category, double price, String description, String imageUrl, boolean available) {
+    public Food(String name, FoodCategory category, double price, String description, String imageUrl, boolean available) {
         this.name = name;
         this.category = category;
         this.price = price;
@@ -23,10 +24,21 @@ public class Food implements Serializable {
         this.available = available;
     }
 
-    public Food(long id, String name, String category, double price, String description, String imageUrl, boolean available) {
+    public Food(long id, String name, FoodCategory category, double price, String description, String imageUrl, boolean available) {
         this.id = id;
         this.name = name;
         this.category = category;
+        this.price = price;
+        this.description = description;
+        this.imageUrl = imageUrl;
+        this.available = available;
+    }
+    
+    // Constructor with String category for compatibility with existing code
+    public Food(long id, String name, String categoryStr, double price, String description, String imageUrl, boolean available) {
+        this.id = id;
+        this.name = name;
+        this.category = FoodCategory.fromString(categoryStr);
         this.price = price;
         this.description = description;
         this.imageUrl = imageUrl;
@@ -49,12 +61,21 @@ public class Food implements Serializable {
         this.name = name;
     }
 
-    public String getCategory() {
+    public FoodCategory getCategory() {
         return category;
     }
+    
+    public String getCategoryString() {
+        return category != null ? category.getDisplayName() : "";
+    }
 
-    public void setCategory(String category) {
+    public void setCategory(FoodCategory category) {
         this.category = category;
+    }
+    
+    // For compatibility with existing code
+    public void setCategory(String categoryStr) {
+        this.category = FoodCategory.fromString(categoryStr);
     }
 
     public double getPrice() {

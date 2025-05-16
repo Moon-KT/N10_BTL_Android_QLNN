@@ -38,6 +38,17 @@
             android:text="Trống"
             android:textSize="16sp"
             android:textStyle="bold" />
+            
+        <TextView
+            android:id="@+id/textViewUnpaidStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Chưa thanh toán"
+            android:textColor="#FF0000"
+            android:textSize="14sp"
+            android:textStyle="italic|bold"
+            android:visibility="gone" />
 
         <TextView
             android:id="@+id/textViewTableNote"

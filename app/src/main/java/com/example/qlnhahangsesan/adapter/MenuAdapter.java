@@ -119,6 +119,22 @@ public class MenuAdapter extends ArrayAdapter<Food> {
         notifyDataSetChanged();
     }
     
+    // Phương thức để cập nhật danh sách món ăn
+    public void updateFoodList(List<Food> newFoodList) {
+        this.foodList = newFoodList;
+        // Xóa các số lượng đã chọn cho các món không còn trong danh sách mới
+        Map<Long, Integer> updatedQuantities = new HashMap<>();
+        for (Food food : newFoodList) {
+            if (selectedQuantities.containsKey(food.getId())) {
+                updatedQuantities.put(food.getId(), selectedQuantities.get(food.getId()));
+            }
+        }
+        selectedQuantities = updatedQuantities;
+        clear();
+        addAll(newFoodList);
+        notifyDataSetChanged();
+    }
+    
     private static class ViewHolder {
         TextView foodNameTextView;
         TextView foodPriceTextView;

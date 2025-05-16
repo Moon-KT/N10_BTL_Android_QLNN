@@ -274,7 +274,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             ContentValues values = new ContentValues();
             values.put(KEY_EMPLOYEE_NAME, employee.getName());
-            values.put(KEY_EMPLOYEE_POSITION, employee.getPosition());
+            values.put(KEY_EMPLOYEE_POSITION, employee.getPositionString());
             values.put(KEY_EMPLOYEE_PHONE, employee.getPhone());
             values.put(KEY_EMPLOYEE_EMAIL, employee.getEmail());
             values.put(KEY_EMPLOYEE_ADDRESS, employee.getAddress());
@@ -300,7 +300,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             ContentValues values = new ContentValues();
             values.put(KEY_EMPLOYEE_NAME, employee.getName());
-            values.put(KEY_EMPLOYEE_POSITION, employee.getPosition());
+            values.put(KEY_EMPLOYEE_POSITION, employee.getPositionString());
             values.put(KEY_EMPLOYEE_PHONE, employee.getPhone());
             values.put(KEY_EMPLOYEE_EMAIL, employee.getEmail());
             values.put(KEY_EMPLOYEE_ADDRESS, employee.getAddress());
@@ -416,7 +416,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             ContentValues values = new ContentValues();
             values.put(KEY_FOOD_NAME, food.getName());
-            values.put(KEY_FOOD_CATEGORY, food.getCategory());
+            values.put(KEY_FOOD_CATEGORY, food.getCategoryString());
             values.put(KEY_FOOD_PRICE, food.getPrice());
             values.put(KEY_FOOD_DESCRIPTION, food.getDescription());
             values.put(KEY_FOOD_IMAGE_URL, food.getImageUrl());
@@ -441,7 +441,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             ContentValues values = new ContentValues();
             values.put(KEY_FOOD_NAME, food.getName());
-            values.put(KEY_FOOD_CATEGORY, food.getCategory());
+            values.put(KEY_FOOD_CATEGORY, food.getCategoryString());
             values.put(KEY_FOOD_PRICE, food.getPrice());
             values.put(KEY_FOOD_DESCRIPTION, food.getDescription());
             values.put(KEY_FOOD_IMAGE_URL, food.getImageUrl());
@@ -1422,52 +1422,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     Log.d(TAG, "Added menu item: " + food.getName());
                 } while (cursor.moveToNext());
             } else {
-                Log.d(TAG, "No daily menu items found for today, checking recent dates");
-                
-                // If no menu for today, check if there's a menu for recent dates (last 7 days)
-                query = "SELECT DISTINCT " + KEY_DAILY_MENU_DATE + 
-                        " FROM " + TABLE_DAILY_MENU + 
-                        " ORDER BY " + KEY_DAILY_MENU_DATE + " DESC LIMIT 7";
-                
-                cursor.close();
-                cursor = db.rawQuery(query, null);
-                
-                if (cursor.moveToFirst()) {
-                    String recentDate = cursor.getString(cursor.getColumnIndexOrThrow(KEY_DAILY_MENU_DATE));
-                    Log.d(TAG, "Found recent menu date: " + recentDate);
-                    
-                    cursor.close();
-                    
-                    // Use the most recent menu date
-                    query = "SELECT f.* FROM " + TABLE_FOODS + " f " +
-                            "INNER JOIN " + TABLE_DAILY_MENU + " dm ON f." + KEY_FOOD_ID + " = dm." + KEY_DAILY_MENU_FOOD_ID + " " +
-                            "WHERE dm." + KEY_DAILY_MENU_DATE + " = ? AND f." + KEY_FOOD_AVAILABLE + " = 1";
-                    
-                    cursor = db.rawQuery(query, new String[]{recentDate});
-                    
-                    if (cursor.moveToFirst()) {
-                        do {
-                            Food food = new Food(
-                                cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)),
-                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)),
-                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)),
-                                cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)),
-                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)),
-                                cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)),
-                                cursor.getInt(cursor.getColumnIndexOrThrow(KEY_FOOD_AVAILABLE)) == 1
-                            );
-                            menuItems.add(food);
-                            Log.d(TAG, "Added menu item from recent date: " + food.getName());
-                        } while (cursor.moveToNext());
-                    }
-                }
-                
-                // If still no menu items, fall back to available foods
-                if (menuItems.isEmpty()) {
-                    Log.d(TAG, "No menu items found in recent dates, using all available foods");
-                    cursor.close();
-                    menuItems = getAllAvailableFoods();
-                }
+                Log.d(TAG, "No daily menu items found for today");
+                // No fallback to other dates or all foods - empty menu for today
             }
             
             if (cursor != null && !cursor.isClosed()) {
@@ -1475,11 +1431,50 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         } catch (Exception e) {
             Log.e(TAG, "Error getting menu items for today", e);
-            // On exception, fall back to all available foods
-            menuItems = getAllAvailableFoods();
         }
         
         Log.d(TAG, "Returning " + menuItems.size() + " menu items");
+        return menuItems;
+    }
+
+    // New method to get menu items for a specific date
+    public List<Food> getMenuItemsForDate(String date) {
+        SQLiteDatabase db = getReadableDatabase();
+        List<Food> menuItems = new ArrayList<>();
+        
+        Log.d(TAG, "Getting menu items for date: " + date);
+        
+        try {
+            String query = "SELECT f.* FROM " + TABLE_FOODS + " f " +
+                          "INNER JOIN " + TABLE_DAILY_MENU + " dm ON f." + KEY_FOOD_ID + " = dm." + KEY_DAILY_MENU_FOOD_ID + " " +
+                          "WHERE dm." + KEY_DAILY_MENU_DATE + " = ? AND f." + KEY_FOOD_AVAILABLE + " = 1";
+            
+            Cursor cursor = db.rawQuery(query, new String[]{date});
+            
+            if (cursor.moveToFirst()) {
+                do {
+                    Food food = new Food(
+                        cursor.getLong(cursor.getColumnIndexOrThrow(KEY_FOOD_ID)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_NAME)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_CATEGORY)),
+                        cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_FOOD_PRICE)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_DESCRIPTION)),
+                        cursor.getString(cursor.getColumnIndexOrThrow(KEY_FOOD_IMAGE_URL)),
+                        cursor.getInt(cursor.getColumnIndexOrThrow(KEY_FOOD_AVAILABLE)) == 1
+                    );
+                    menuItems.add(food);
+                    Log.d(TAG, "Added menu item: " + food.getName());
+                } while (cursor.moveToNext());
+            }
+            
+            if (cursor != null && !cursor.isClosed()) {
+                cursor.close();
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting menu items for date: " + date, e);
+        }
+        
+        Log.d(TAG, "Returning " + menuItems.size() + " menu items for date: " + date);
         return menuItems;
     }
 
@@ -1855,5 +1850,97 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         }
         
         return orders;
+    }
+
+    /**
+     * Get all orders for a specific date
+     * @param date Format: yyyy-MM-dd
+     * @return List of orders for that date
+     */
+    public List<Order> getOrdersByDate(String date) {
+        List<Order> orders = new ArrayList<>();
+        SQLiteDatabase db = this.getReadableDatabase();
+        
+        // Convert date to start/end timestamps for that day
+        String startOfDay = date + " 00:00:00";
+        String endOfDay = date + " 23:59:59";
+        
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault());
+        long startTimestamp = 0;
+        long endTimestamp = 0;
+        
+        try {
+            startTimestamp = sdf.parse(startOfDay).getTime();
+            endTimestamp = sdf.parse(endOfDay).getTime();
+        } catch (Exception e) {
+            Log.e(TAG, "Error parsing date", e);
+            return orders;
+        }
+        
+        String query = "SELECT * FROM " + TABLE_ORDERS + 
+                       " WHERE " + KEY_ORDER_DATE + " BETWEEN ? AND ?" +
+                       " ORDER BY " + KEY_ORDER_DATE + " DESC";
+        
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(startTimestamp), String.valueOf(endTimestamp)});
+        
+        try {
+            if (cursor.moveToFirst()) {
+                do {
+                    Order order = new Order();
+                    order.setId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_ORDER_ID)));
+                    order.setTableId(cursor.getLong(cursor.getColumnIndexOrThrow(KEY_ORDER_TABLE_ID)));
+                    
+                    long dateMillis = cursor.getLong(cursor.getColumnIndexOrThrow(KEY_ORDER_DATE));
+                    order.setOrderDate(new Date(dateMillis));
+                    
+                    order.setTotalAmount(cursor.getDouble(cursor.getColumnIndexOrThrow(KEY_ORDER_TOTAL_AMOUNT)));
+                    order.setStatus(cursor.getString(cursor.getColumnIndexOrThrow(KEY_ORDER_STATUS)));
+                    
+                    // Get table name
+                    String tableName = getTableNameById(order.getTableId());
+                    if (tableName != null) {
+                        // Temporarily store the table name in the order object's notes
+                        order.setTableName(tableName);
+                    }
+                    
+                    orders.add(order);
+                } while (cursor.moveToNext());
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting orders by date", e);
+        } finally {
+            if (cursor != null && !cursor.isClosed()) {
+                cursor.close();
+            }
+        }
+        
+        return orders;
+    }
+    
+    /**
+     * Get table name by ID
+     */
+    public String getTableNameById(long tableId) {
+        SQLiteDatabase db = this.getReadableDatabase();
+        String name = null;
+        
+        String query = "SELECT " + KEY_TABLE_NAME + " FROM " + TABLE_TABLES + 
+                       " WHERE " + KEY_TABLE_ID + " = ?";
+        
+        Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(tableId)});
+        
+        try {
+            if (cursor.moveToFirst()) {
+                name = cursor.getString(cursor.getColumnIndexOrThrow(KEY_TABLE_NAME));
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting table name by ID", e);
+        } finally {
+            if (cursor != null && !cursor.isClosed()) {
+                cursor.close();
+            }
+        }
+        
+        return name;
     }
 } 

@@ -165,21 +165,12 @@ public class DailyMenuActivity extends AppCompatActivity {
     }
 
     private void showEditMenuItemDialog(DailyMenu menuItem) {
-        // Show dialog to edit quantity and featured status
+        // Show dialog to edit featured status only
         View dialogView = getLayoutInflater().inflate(R.layout.dialog_edit_menu_item, null);
         androidx.appcompat.widget.SwitchCompat switchFeatured = dialogView.findViewById(R.id.switchFeatured);
-        com.google.android.material.slider.Slider sliderQuantity = dialogView.findViewById(R.id.sliderQuantity);
-        TextView textViewQuantity = dialogView.findViewById(R.id.textViewQuantity);
 
         // Set current values
         switchFeatured.setChecked(menuItem.isFeatured());
-        sliderQuantity.setValue(menuItem.getQuantity());
-        textViewQuantity.setText(String.format(Locale.getDefault(), "Số lượng: %d", menuItem.getQuantity()));
-
-        // Update quantity text when slider changes
-        sliderQuantity.addOnChangeListener((slider, value, fromUser) -> {
-            textViewQuantity.setText(String.format(Locale.getDefault(), "Số lượng: %d", (int) value));
-        });
 
         new AlertDialog.Builder(this)
                 .setTitle("Chỉnh sửa " + menuItem.getFoodName())
@@ -187,7 +178,7 @@ public class DailyMenuActivity extends AppCompatActivity {
                 .setPositiveButton("Lưu", (dialog, which) -> {
                     // Update menu item
                     menuItem.setFeatured(switchFeatured.isChecked());
-                    menuItem.setQuantity((int) sliderQuantity.getValue());
+                    // Keep existing quantity value
                     boolean success = databaseHelper.updateDailyMenuItem(menuItem);
                     
                     if (success) {

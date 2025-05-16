@@ -23,7 +23,7 @@ public class OrderItemAdapter extends ArrayAdapter<OrderItem> {
     private final NumberFormat currencyFormat;
 
     public OrderItemAdapter(Context context, List<OrderItem> orderItems) {
-        super(context, R.layout.item_order, orderItems);
+        super(context, R.layout.item_order_detail, orderItems);
         this.context = context;
         this.orderItems = orderItems;
         this.currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
@@ -33,7 +33,7 @@ public class OrderItemAdapter extends ArrayAdapter<OrderItem> {
     @Override
     public View getView(int position, @Nullable View convertView, @NonNull ViewGroup parent) {
         if (convertView == null) {
-            convertView = LayoutInflater.from(context).inflate(R.layout.item_order, parent, false);
+            convertView = LayoutInflater.from(context).inflate(R.layout.item_order_detail, parent, false);
         }
 
         OrderItem item = orderItems.get(position);

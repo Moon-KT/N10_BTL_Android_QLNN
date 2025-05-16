@@ -40,15 +40,17 @@
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
 
-            <EditText
-                android:id="@+id/editTextPosition"
+            <AutoCompleteTextView
+                android:id="@+id/spinnerPosition"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Chức vụ"
-                android:inputType="text"
-                android:maxLines="1" />
+                android:inputType="none"
+                android:editable="false"
+                android:focusable="false" />
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout

@@ -8,10 +8,12 @@ import android.provider.MediaStore;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -22,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.qlnhahangsesan.database.DatabaseHelper;
 import com.example.qlnhahangsesan.model.Food;
+import com.example.qlnhahangsesan.model.FoodCategory;
 
 public class FoodDetailActivity extends AppCompatActivity {
 
@@ -31,7 +34,7 @@ public class FoodDetailActivity extends AppCompatActivity {
     private ImageView imageViewFoodPhoto;
     private Button buttonChooseImage;
     private EditText editTextName;
-    private EditText editTextCategory;
+    private Spinner spinnerCategory;
     private EditText editTextPrice;
     private EditText editTextDescription;
     private CheckBox checkBoxAvailable;
@@ -57,13 +60,16 @@ public class FoodDetailActivity extends AppCompatActivity {
         imageViewFoodPhoto = findViewById(R.id.imageViewFoodPhoto);
         buttonChooseImage = findViewById(R.id.buttonChooseImage);
         editTextName = findViewById(R.id.editTextName);
-        editTextCategory = findViewById(R.id.editTextCategory);
+        spinnerCategory = findViewById(R.id.spinnerCategory);
         editTextPrice = findViewById(R.id.editTextPrice);
         editTextDescription = findViewById(R.id.editTextDescription);
         checkBoxAvailable = findViewById(R.id.checkBoxAvailable);
         buttonCancel = findViewById(R.id.buttonCancel);
         buttonSave = findViewById(R.id.buttonSave);
         buttonDelete = findViewById(R.id.buttonDelete);
+
+        // Set up category spinner
+        setupCategorySpinner();
 
         // Set up image picker
         buttonChooseImage.setOnClickListener(v -> openImagePicker());
@@ -97,9 +103,26 @@ public class FoodDetailActivity extends AppCompatActivity {
         buttonDelete.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
     }
 
+    private void setupCategorySpinner() {
+        ArrayAdapter<FoodCategory> adapter = new ArrayAdapter<>(
+                this, android.R.layout.simple_spinner_item, FoodCategory.values());
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCategory.setAdapter(adapter);
+    }
+
     private void populateFoodData() {
         editTextName.setText(food.getName());
-        editTextCategory.setText(food.getCategory());
+        
+        // Set category in spinner
+        if (food.getCategory() != null) {
+            for (int i = 0; i < FoodCategory.values().length; i++) {
+                if (FoodCategory.values()[i] == food.getCategory()) {
+                    spinnerCategory.setSelection(i);
+                    break;
+                }
+            }
+        }
+        
         editTextPrice.setText(String.valueOf(food.getPrice()));
         editTextDescription.setText(food.getDescription());
         checkBoxAvailable.setChecked(food.isAvailable());
@@ -121,7 +144,7 @@ public class FoodDetailActivity extends AppCompatActivity {
     private void saveFood() {
         // Get input values
         String name = editTextName.getText().toString().trim();
-        String category = editTextCategory.getText().toString().trim();
+        FoodCategory category = (FoodCategory) spinnerCategory.getSelectedItem();
         String priceStr = editTextPrice.getText().toString().trim();
         String description = editTextDescription.getText().toString().trim();
         boolean available = checkBoxAvailable.isChecked();
@@ -130,12 +153,6 @@ public class FoodDetailActivity extends AppCompatActivity {
         if (TextUtils.isEmpty(name)) {
             editTextName.setError("Vui lòng nhập tên món ăn");
             editTextName.requestFocus();
-            return;
-        }
-
-        if (TextUtils.isEmpty(category)) {
-            editTextCategory.setError("Vui lòng nhập loại món");
-            editTextCategory.requestFocus();
             return;
         }
 

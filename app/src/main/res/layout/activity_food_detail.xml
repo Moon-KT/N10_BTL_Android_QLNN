@@ -56,19 +56,19 @@
                 android:maxLines="1" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp">
+            android:text="Loại món"
+            android:layout_marginBottom="8dp"
+            android:textSize="16sp" />
 
-            <EditText
-                android:id="@+id/editTextCategory"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:hint="Loại món"
-                android:inputType="text"
-                android:maxLines="1" />
-        </com.google.android.material.textfield.TextInputLayout>
+        <Spinner
+            android:id="@+id/spinnerCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:minHeight="48dp" />
 
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"

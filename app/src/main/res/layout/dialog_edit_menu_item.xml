@@ -14,21 +14,4 @@
         android:textSize="16sp"
         android:layout_marginBottom="16dp"/>
 
-    <TextView
-        android:id="@+id/textViewQuantity"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Số lượng: 10"
-        android:textSize="16sp"
-        android:layout_marginBottom="8dp"/>
-
-    <com.google.android.material.slider.Slider
-        android:id="@+id/sliderQuantity"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:stepSize="1"
-        android:valueFrom="1"
-        android:valueTo="100"
-        app:labelBehavior="gone"/>
-
 </LinearLayout> 

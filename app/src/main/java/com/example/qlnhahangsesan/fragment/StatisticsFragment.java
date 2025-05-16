@@ -135,7 +135,8 @@ public class StatisticsFragment extends Fragment {
     
     private void setupRecyclerView() {
         recyclerViewStatistics.setLayoutManager(new LinearLayoutManager(getContext()));
-        adapter = new StatisticsAdapter(getContext(), statisticsList, statisticType == STATS_TYPE_REVENUE);
+        boolean isMonetary = (statisticType == STATS_TYPE_REVENUE || statisticType == STATS_TYPE_TOP_FOODS);
+        adapter = new StatisticsAdapter(getContext(), statisticsList, isMonetary, statisticType);
         recyclerViewStatistics.setAdapter(adapter);
     }
     
@@ -229,8 +230,29 @@ public class StatisticsFragment extends Fragment {
                     progressBar.setVisibility(View.GONE);
                     if (finalResult.isEmpty()) {
                         textViewEmpty.setVisibility(View.VISIBLE);
-                        textViewEmpty.setText(R.string.no_statistics);
                         recyclerViewStatistics.setVisibility(View.GONE);
+                        
+                        // Hiển thị thông báo cụ thể cho từng loại thống kê
+                        switch (statisticType) {
+                            case STATS_TYPE_FOOD_CATEGORY:
+                                textViewEmpty.setText("Không có dữ liệu về danh mục món ăn.\nHãy thêm món ăn vào các danh mục để xem thống kê.");
+                                break;
+                            case STATS_TYPE_REVENUE:
+                                textViewEmpty.setText("Không có dữ liệu doanh thu trong khoảng thời gian đã chọn.\nHãy thực hiện một số đơn hàng để xem thống kê.");
+                                break;
+                            case STATS_TYPE_TOP_FOODS:
+                                textViewEmpty.setText("Không có dữ liệu về các món ăn phổ biến.\nHãy thực hiện một số đơn hàng để xem thống kê.");
+                                break;
+                            case STATS_TYPE_TABLE_STATUS:
+                                textViewEmpty.setText("Không có dữ liệu về trạng thái bàn.\nHãy thêm một số bàn để xem thống kê.");
+                                break;
+                            case STATS_TYPE_MENU_BY_DATE:
+                                textViewEmpty.setText("Không có dữ liệu về menu hàng ngày trong khoảng thời gian đã chọn.\nHãy thêm món ăn vào menu hàng ngày để xem thống kê.");
+                                break;
+                            default:
+                                textViewEmpty.setText(R.string.no_statistics);
+                                break;
+                        }
                     } else {
                         textViewEmpty.setVisibility(View.GONE);
                         recyclerViewStatistics.setVisibility(View.VISIBLE);

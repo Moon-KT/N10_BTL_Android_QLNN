@@ -55,9 +55,6 @@ public class DailyMenuAdapter extends RecyclerView.Adapter<DailyMenuAdapter.Dail
         // Set food price
         holder.textViewPrice.setText(currencyFormatter.format(menuItem.getFoodPrice()));
         
-        // Set food quantity
-        holder.textViewQuantity.setText("SL: " + menuItem.getQuantity());
-        
         // Set featured badge visibility
         if (menuItem.isFeatured()) {
             holder.textViewFeatured.setVisibility(View.VISIBLE);
@@ -95,7 +92,6 @@ public class DailyMenuAdapter extends RecyclerView.Adapter<DailyMenuAdapter.Dail
         TextView textViewFoodName;
         TextView textViewCategory;
         TextView textViewPrice;
-        TextView textViewQuantity;
         TextView textViewFeatured;
 
         public DailyMenuViewHolder(@NonNull View itemView) {
@@ -104,7 +100,6 @@ public class DailyMenuAdapter extends RecyclerView.Adapter<DailyMenuAdapter.Dail
             textViewFoodName = itemView.findViewById(R.id.textViewFoodName);
             textViewCategory = itemView.findViewById(R.id.textViewFoodCategory);
             textViewPrice = itemView.findViewById(R.id.textViewFoodPrice);
-            textViewQuantity = itemView.findViewById(R.id.textViewQuantity);
             textViewFeatured = itemView.findViewById(R.id.textViewFeatured);
         }
     }

@@ -1,8 +1,10 @@
 package com.example.qlnhahangsesan.statistics;
 
+import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.view.MenuItem;
+import android.view.View;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -27,6 +29,8 @@ import com.github.mikephil.charting.data.PieDataSet;
 import com.github.mikephil.charting.data.PieEntry;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.github.mikephil.charting.formatter.PercentFormatter;
+import com.github.mikephil.charting.highlight.Highlight;
+import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
 import com.github.mikephil.charting.utils.ColorTemplate;
 
 import java.text.NumberFormat;
@@ -47,7 +51,9 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private static final SimpleDateFormat dbDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
+    // Constants for statistic types
     public static final String STATS_TYPE = "stats_type";
+    public static final int STATS_DEMO_DATA = 0;
     public static final int STATS_FOOD_BY_CATEGORY = 1;
     public static final int STATS_REVENUE_BY_DATE = 2;
     public static final int STATS_TOP_FOODS = 3;
@@ -76,7 +82,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         databaseHelper = DatabaseHelper.getInstance(this);
 
         // Get statistics type from intent
-        int statsType = getIntent().getIntExtra(STATS_TYPE, 0);
+        int statsType = getIntent().getIntExtra(STATS_TYPE, STATS_DEMO_DATA);
         loadStatistics(statsType);
     }
 
@@ -97,9 +103,13 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             case STATS_MENU_BY_DATE:
                 showMenuByDate();
                 break;
-            default:
-                // Show default data
+            case STATS_DEMO_DATA:
+                // Show demo data when specifically requested
                 showDemoData();
+                break;
+            default:
+                // Show no data message
+                showNoDataMessage();
                 break;
         }
     }
@@ -109,15 +119,17 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewDescription.setText("Biểu đồ thể hiện phần trăm số lượng món ăn trong mỗi danh mục");
         
         // Hide other charts
-        pieChart.setVisibility(android.view.View.VISIBLE);
-        barChart.setVisibility(android.view.View.GONE);
-        lineChart.setVisibility(android.view.View.GONE);
+        pieChart.setVisibility(View.VISIBLE);
+        barChart.setVisibility(View.GONE);
+        lineChart.setVisibility(View.GONE);
         
         List<StatisticItem> statistics = databaseHelper.getFoodCountByCategory();
         
-        // If no data, create demo data
+        // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
-            statistics = createDemoFoodCategoryData();
+            pieChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu về các danh mục món ăn. Hãy thêm một số món ăn để xem thống kê.");
+            return;
         }
         
         List<PieEntry> entries = new ArrayList<>();
@@ -150,12 +162,12 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
 
     private void showRevenueByDate() {
         textViewTitle.setText("Thống kê doanh thu theo ngày");
-        textViewDescription.setText("Biểu đồ thể hiện doanh thu của từng ngày trong 7 ngày qua");
+        textViewDescription.setText("Biểu đồ thể hiện doanh thu của từng ngày trong 7 ngày qua\n(Nhấn vào điểm trên biểu đồ để xem chi tiết đơn hàng)");
         
         // Hide other charts
-        pieChart.setVisibility(android.view.View.GONE);
-        barChart.setVisibility(android.view.View.GONE);
-        lineChart.setVisibility(android.view.View.VISIBLE);
+        pieChart.setVisibility(View.GONE);
+        barChart.setVisibility(View.GONE);
+        lineChart.setVisibility(View.VISIBLE);
         
         // Get date range (last 7 days)
         Calendar endCalendar = Calendar.getInstance();
@@ -165,48 +177,16 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         String startDate = dbDateFormat.format(startCalendar.getTime());
         String endDate = dbDateFormat.format(endCalendar.getTime());
         
-        List<StatisticItem> statistics = databaseHelper.getRevenueByDate(startDate, endDate);
+        final List<StatisticItem> statistics = databaseHelper.getRevenueByDate(startDate, endDate);
         
-        // If no data, create demo data
+        // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
-            statistics = createDemoRevenueData(startCalendar, endCalendar);
+            lineChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu doanh thu cho 7 ngày qua. Hãy thực hiện một số đơn hàng để xem thống kê.");
+            return;
         }
         
-        List<Entry> entries = new ArrayList<>();
-        List<String> xAxisLabels = new ArrayList<>();
-        
-        for (int i = 0; i < statistics.size(); i++) {
-            StatisticItem item = statistics.get(i);
-            entries.add(new Entry(i, (float) item.getValue()));
-            xAxisLabels.add(item.getName());
-        }
-        
-        LineDataSet dataSet = new LineDataSet(entries, "Doanh thu (VND)");
-        dataSet.setColor(Color.BLUE);
-        dataSet.setValueTextColor(Color.BLACK);
-        dataSet.setValueTextSize(12f);
-        dataSet.setLineWidth(2f);
-        dataSet.setCircleRadius(4f);
-        dataSet.setCircleColor(Color.RED);
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        
-        LineData lineData = new LineData(dataSet);
-        
-        Description description = new Description();
-        description.setText("");
-        lineChart.setDescription(description);
-        lineChart.setData(lineData);
-        
-        // Customize X Axis to show date labels
-        XAxis xAxis = lineChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(xAxisLabels));
-        xAxis.setGranularity(1f);
-        xAxis.setLabelRotationAngle(45f);
-        
-        lineChart.getAxisRight().setEnabled(false);
-        lineChart.getLegend().setEnabled(true);
-        lineChart.invalidate();
+        setupLineChart(statistics);
     }
 
     private void showTopFoods() {
@@ -214,15 +194,17 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewDescription.setText("Biểu đồ thể hiện số lượng bán ra của 10 món ăn bán chạy nhất");
         
         // Hide other charts
-        pieChart.setVisibility(android.view.View.GONE);
-        barChart.setVisibility(android.view.View.VISIBLE);
-        lineChart.setVisibility(android.view.View.GONE);
+        pieChart.setVisibility(View.GONE);
+        barChart.setVisibility(View.VISIBLE);
+        lineChart.setVisibility(View.GONE);
         
         List<StatisticItem> statistics = databaseHelper.getTopFoods(10);
         
-        // If no data, create demo data
+        // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
-            statistics = createDemoTopFoodData();
+            barChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu về các món ăn phổ biến. Hãy thực hiện một số đơn hàng để xem thống kê.");
+            return;
         }
         
         List<BarEntry> entries = new ArrayList<>();
@@ -265,15 +247,17 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewDescription.setText("Biểu đồ thể hiện tỷ lệ bàn theo từng trạng thái");
         
         // Hide other charts
-        pieChart.setVisibility(android.view.View.VISIBLE);
-        barChart.setVisibility(android.view.View.GONE);
-        lineChart.setVisibility(android.view.View.GONE);
+        pieChart.setVisibility(View.VISIBLE);
+        barChart.setVisibility(View.GONE);
+        lineChart.setVisibility(View.GONE);
         
         List<StatisticItem> statistics = databaseHelper.getTableCountByStatus();
         
-        // If no data, create demo data
+        // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
-            statistics = createDemoTableStatusData();
+            pieChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu về trạng thái bàn. Hãy thêm một số bàn để xem thống kê.");
+            return;
         }
         
         List<PieEntry> entries = new ArrayList<>();
@@ -324,9 +308,9 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewDescription.setText("Biểu đồ thể hiện số lượng món ăn trong menu theo ngày trong 7 ngày qua");
         
         // Hide other charts
-        pieChart.setVisibility(android.view.View.GONE);
-        barChart.setVisibility(android.view.View.VISIBLE);
-        lineChart.setVisibility(android.view.View.GONE);
+        pieChart.setVisibility(View.GONE);
+        barChart.setVisibility(View.VISIBLE);
+        lineChart.setVisibility(View.GONE);
         
         // Get date range (last 7 days)
         Calendar endCalendar = Calendar.getInstance();
@@ -338,9 +322,11 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         
         List<StatisticItem> statistics = databaseHelper.getDailyMenuCountByDate(startDate, endDate);
         
-        // If no data, create demo data
+        // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
-            statistics = createDemoMenuData(startCalendar, endCalendar);
+            barChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu về menu hàng ngày. Hãy thêm một số món vào menu hàng ngày để xem thống kê.");
+            return;
         }
         
         List<BarEntry> entries = new ArrayList<>();
@@ -386,13 +372,13 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
     }
 
     private void showDemoData() {
-        textViewTitle.setText("Thống kê biểu đồ mẫu");
-        textViewDescription.setText("Đây là biểu đồ mẫu với dữ liệu giả lập");
+        textViewTitle.setText("Biểu đồ thống kê mẫu");
+        textViewDescription.setText("Đây là biểu đồ mẫu với dữ liệu giả lập để minh họa. Không phải dữ liệu thực tế từ cơ sở dữ liệu.");
         
         // Hiển thị tất cả biểu đồ để demo
-        pieChart.setVisibility(android.view.View.VISIBLE);
-        barChart.setVisibility(android.view.View.VISIBLE);
-        lineChart.setVisibility(android.view.View.VISIBLE);
+        pieChart.setVisibility(View.VISIBLE);
+        barChart.setVisibility(View.VISIBLE);
+        lineChart.setVisibility(View.VISIBLE);
         
         // Demo pie chart
         List<StatisticItem> pieData = createDemoFoodCategoryData();
@@ -401,7 +387,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             pieEntries.add(new PieEntry((float) item.getValue(), item.getName()));
         }
         
-        PieDataSet pieDataSet = new PieDataSet(pieEntries, "Danh mục món ăn");
+        PieDataSet pieDataSet = new PieDataSet(pieEntries, "Danh mục món ăn (DỮ LIỆU MẪU)");
         pieDataSet.setColors(ColorTemplate.COLORFUL_COLORS);
         pieDataSet.setValueTextSize(14f);
         pieDataSet.setValueTextColor(Color.WHITE);
@@ -410,10 +396,10 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         pieChartData.setValueFormatter(new PercentFormatter(pieChart));
         
         Description pieDescription = new Description();
-        pieDescription.setText("");
+        pieDescription.setText("Dữ liệu mẫu");
         pieChart.setDescription(pieDescription);
         pieChart.setData(pieChartData);
-        pieChart.setCenterText("Tổng số món: " + countTotalValue(pieData));
+        pieChart.setCenterText("DỮ LIỆU MẪU\nTổng số món: " + countTotalValue(pieData));
         pieChart.setCenterTextSize(16f);
         pieChart.setEntryLabelTextSize(14f);
         pieChart.setEntryLabelColor(Color.WHITE);
@@ -434,7 +420,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             barXAxisLabels.add(item.getName());
         }
         
-        BarDataSet barDataSet = new BarDataSet(barEntries, "Số lượng bán ra");
+        BarDataSet barDataSet = new BarDataSet(barEntries, "Số lượng bán ra (DỮ LIỆU MẪU)");
         barDataSet.setColors(ColorTemplate.MATERIAL_COLORS);
         barDataSet.setValueTextSize(12f);
         
@@ -442,7 +428,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         barChartData.setBarWidth(0.7f);
         
         Description barDescription = new Description();
-        barDescription.setText("");
+        barDescription.setText("Dữ liệu mẫu");
         barChart.setDescription(barDescription);
         barChart.setData(barChartData);
         
@@ -472,7 +458,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             lineXAxisLabels.add(item.getName());
         }
         
-        LineDataSet lineDataSet = new LineDataSet(lineEntries, "Doanh thu (VND)");
+        LineDataSet lineDataSet = new LineDataSet(lineEntries, "Doanh thu (VND) - DỮ LIỆU MẪU");
         lineDataSet.setColor(Color.BLUE);
         lineDataSet.setValueTextColor(Color.BLACK);
         lineDataSet.setValueTextSize(12f);
@@ -484,7 +470,7 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         LineData lineChartData = new LineData(lineDataSet);
         
         Description lineDescription = new Description();
-        lineDescription.setText("");
+        lineDescription.setText("Dữ liệu mẫu");
         lineChart.setDescription(lineDescription);
         lineChart.setData(lineChartData);
         
@@ -496,6 +482,94 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         
         lineChart.getAxisRight().setEnabled(false);
         lineChart.getLegend().setEnabled(true);
+        lineChart.invalidate();
+    }
+
+    private void setupLineChart(List<StatisticItem> statistics) {
+        if (statistics == null || statistics.isEmpty()) {
+            lineChart.setVisibility(View.GONE);
+            return;
+        }
+        
+        lineChart.setVisibility(View.VISIBLE);
+        
+        // Format dates
+        SimpleDateFormat dbDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM", Locale.getDefault());
+        
+        List<Entry> entries = new ArrayList<>();
+        List<String> xAxisLabels = new ArrayList<>();
+        List<String> originalDates = new ArrayList<>();
+        
+        for (int i = 0; i < statistics.size(); i++) {
+            StatisticItem item = statistics.get(i);
+            entries.add(new Entry(i, (float) item.getValue()));
+            
+            // Convert database date format to display format
+            try {
+                Date date = dbDateFormat.parse(item.getName());
+                xAxisLabels.add(dateFormat.format(date));
+                originalDates.add(item.getName()); // Store original date for click handling
+            } catch (Exception e) {
+                xAxisLabels.add(item.getName());
+                originalDates.add(item.getName());
+            }
+        }
+        
+        LineDataSet dataSet = new LineDataSet(entries, "Doanh thu (VNĐ)");
+        dataSet.setColor(Color.BLUE);
+        dataSet.setValueTextColor(Color.BLACK);
+        dataSet.setValueTextSize(12f);
+        dataSet.setLineWidth(2f);
+        dataSet.setCircleRadius(4f);
+        dataSet.setCircleColor(Color.RED);
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        
+        LineData lineData = new LineData(dataSet);
+        
+        Description description = new Description();
+        description.setText("");
+        lineChart.setDescription(description);
+        lineChart.setData(lineData);
+        
+        // Customize X Axis to show date labels
+        XAxis xAxis = lineChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(xAxisLabels));
+        xAxis.setGranularity(1f);
+        xAxis.setLabelRotationAngle(45f);
+        
+        lineChart.getAxisRight().setEnabled(false);
+        lineChart.getLegend().setEnabled(true);
+        
+        // Enable user interaction with the chart
+        lineChart.setTouchEnabled(true);
+        lineChart.setDragEnabled(true);
+        lineChart.setScaleEnabled(true);
+        lineChart.setPinchZoom(true);
+        
+        // Set up click listener for data points
+        lineChart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+            @Override
+            public void onValueSelected(Entry e, Highlight h) {
+                int index = (int) e.getX();
+                if (index >= 0 && index < originalDates.size()) {
+                    String selectedDate = originalDates.get(index);
+                    
+                    // Create intent to open DayOrdersActivity
+                    Intent intent = new Intent(StatisticsDetailsActivity.this, 
+                            com.example.qlnhahangsesan.DayOrdersActivity.class);
+                    intent.putExtra("date", selectedDate);
+                    startActivity(intent);
+                }
+            }
+
+            @Override
+            public void onNothingSelected() {
+                // Do nothing
+            }
+        });
+        
         lineChart.invalidate();
     }
 
@@ -571,6 +645,16 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             total += item.getValue();
         }
         return total;
+    }
+
+    private void showNoDataMessage() {
+        textViewTitle.setText("Không có dữ liệu thống kê");
+        textViewDescription.setText("Không có dữ liệu thống kê phù hợp với yêu cầu của bạn.");
+        
+        // Hide all charts
+        pieChart.setVisibility(View.GONE);
+        barChart.setVisibility(View.GONE);
+        lineChart.setVisibility(View.GONE);
     }
 
     @Override

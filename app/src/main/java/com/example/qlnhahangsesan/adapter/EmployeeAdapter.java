@@ -11,6 +11,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.qlnhahangsesan.R;
 import com.example.qlnhahangsesan.model.Employee;
+import com.example.qlnhahangsesan.model.Position;
 
 import java.text.NumberFormat;
 import java.util.List;
@@ -47,7 +48,12 @@ public class EmployeeAdapter extends RecyclerView.Adapter<EmployeeAdapter.Employ
         Employee employee = employeeList.get(position);
         
         holder.textViewName.setText(employee.getName());
-        holder.textViewPosition.setText(employee.getPosition());
+        
+        // Display the position enum display name
+        Position employeePosition = employee.getPosition();
+        holder.textViewPosition.setText(employeePosition != null ? 
+                employeePosition.getDisplayName() : "");
+        
         holder.textViewPhone.setText(employee.getPhone());
         holder.textViewSalary.setText(currencyFormat.format(employee.getSalary()));
         

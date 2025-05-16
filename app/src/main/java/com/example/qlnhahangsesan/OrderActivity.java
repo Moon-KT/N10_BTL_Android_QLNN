@@ -1,5 +1,6 @@
 package com.example.qlnhahangsesan;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
@@ -22,7 +23,9 @@ import com.example.qlnhahangsesan.model.OrderItem;
 import com.example.qlnhahangsesan.model.Table;
 
 import java.text.NumberFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
@@ -36,8 +39,11 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
     private ListView listViewMenu;
     private TextView textViewTableInfo;
     private TextView textViewTotalAmount;
+    private TextView textViewSelectedDate;
     private Button buttonCheckout;
     private Button buttonCancel;
+    private Button buttonSelectDate;
+    private TextView textViewEmptyMenu;
 
     private DatabaseHelper databaseHelper;
     private MenuAdapter menuAdapter;
@@ -48,6 +54,8 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
     private long tableId;
     private String tableName;
     private NumberFormat currencyFormat;
+    private SimpleDateFormat dateFormat;
+    private String currentDate;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,8 +65,10 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         // Khởi tạo DatabaseHelper
         databaseHelper = DatabaseHelper.getInstance(this);
         
-        // Định dạng tiền tệ
+        // Định dạng tiền tệ và ngày tháng
         currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+        currentDate = dateFormat.format(new Date());
 
         // Lấy thông tin bàn từ Intent
         tableId = getIntent().getLongExtra("tableId", -1);
@@ -88,6 +98,9 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         // Hiển thị thông tin bàn
         String tableInfoText = "Bàn: " + currentTable.getName();
         textViewTableInfo.setText(tableInfoText);
+        
+        // Hiển thị ngày hiện tại
+        textViewSelectedDate.setText("Menu ngày: " + currentDate);
 
         // Thiết lập ListView
         setupListView();
@@ -108,25 +121,75 @@ public class OrderActivity extends AppCompatActivity implements MenuAdapter.OnQu
         textViewTotalAmount = findViewById(R.id.textViewTotalAmount);
         buttonCheckout = findViewById(R.id.buttonCheckout);
         buttonCancel = findViewById(R.id.buttonCancel);
+        
+        // Thêm view cho ngày
+        textViewSelectedDate = findViewById(R.id.textViewSelectedDate);
+        buttonSelectDate = findViewById(R.id.buttonSelectDate);
+        textViewEmptyMenu = findViewById(R.id.textViewEmptyMenu);
+        
+        // Thiết lập sự kiện cho nút chọn ngày
+        buttonSelectDate.setOnClickListener(v -> showDatePicker());
+    }
+    
+    private void showDatePicker() {
+        final Calendar calendar = Calendar.getInstance();
+        try {
+            calendar.setTime(dateFormat.parse(currentDate));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                this,
+                (view, year1, month1, dayOfMonth) -> {
+                    calendar.set(year1, month1, dayOfMonth);
+                    currentDate = dateFormat.format(calendar.getTime());
+                    textViewSelectedDate.setText("Menu ngày: " + currentDate);
+                    loadMenuForDate(currentDate);
+                },
+                year, month, day
+        );
+        datePickerDialog.show();
     }
 
     private void setupListView() {
         // Lấy danh sách món ăn từ menu hôm nay
-        foodList = databaseHelper.getMenuItemsForToday();
+        loadMenuForDate(currentDate);
+    }
+    
+    private void loadMenuForDate(String date) {
+        // Lấy danh sách món ăn theo ngày
+        foodList = databaseHelper.getMenuItemsForDate(date);
         
-        // Nếu không có menu hôm nay, lấy tất cả món ăn
-        if (foodList.isEmpty()) {
-            foodList = databaseHelper.getAllFoods();
-        }
-
         // Khởi tạo adapter
-        menuAdapter = new MenuAdapter(this, foodList, this);
-        listViewMenu.setAdapter(menuAdapter);
+        if (menuAdapter == null) {
+            menuAdapter = new MenuAdapter(this, foodList, this);
+            listViewMenu.setAdapter(menuAdapter);
+            
+            // Cập nhật giao diện để hiển thị rõ ràng danh sách các món
+            listViewMenu.setDivider(new android.graphics.drawable.ColorDrawable(getResources().getColor(R.color.colorDivider)));
+            listViewMenu.setDividerHeight(1);
+            listViewMenu.setSelector(android.R.color.transparent);
+        } else {
+            menuAdapter.updateFoodList(foodList);
+        }
         
-        // Cập nhật giao diện để hiển thị rõ ràng danh sách các món
-        listViewMenu.setDivider(new android.graphics.drawable.ColorDrawable(getResources().getColor(R.color.colorDivider)));
-        listViewMenu.setDividerHeight(1);
-        listViewMenu.setSelector(android.R.color.transparent);
+        // Hiển thị thông báo nếu không có món ăn
+        if (foodList.isEmpty()) {
+            textViewEmptyMenu.setVisibility(View.VISIBLE);
+            textViewEmptyMenu.setText("Không có menu cho ngày " + date);
+            listViewMenu.setVisibility(View.GONE);
+        } else {
+            textViewEmptyMenu.setVisibility(View.GONE);
+            listViewMenu.setVisibility(View.VISIBLE);
+        }
+        
+        // Xóa các món đã chọn khi thay đổi ngày
+        orderItems.clear();
         
         // Cập nhật hiển thị tổng tiền ban đầu
         updateTotalAmount();

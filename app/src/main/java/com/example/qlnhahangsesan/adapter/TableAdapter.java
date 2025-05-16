@@ -12,6 +12,8 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.qlnhahangsesan.R;
+import com.example.qlnhahangsesan.database.DatabaseHelper;
+import com.example.qlnhahangsesan.model.Order;
 import com.example.qlnhahangsesan.model.Table;
 
 import java.util.List;
@@ -21,6 +23,7 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
     private Context context;
     private List<Table> tableList;
     private OnTableClickListener listener;
+    private DatabaseHelper databaseHelper;
 
     public interface OnTableClickListener {
         void onTableClick(Table table, int position);
@@ -30,6 +33,7 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
         this.context = context;
         this.tableList = tableList;
         this.listener = listener;
+        this.databaseHelper = DatabaseHelper.getInstance(context);
     }
 
     @NonNull
@@ -74,6 +78,18 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
         holder.cardView.setCardBackgroundColor(ContextCompat.getColor(context, cardColor));
         holder.textViewStatus.setTextColor(ContextCompat.getColor(context, textColor));
         
+        // Check if table has unpaid order
+        if (table.getStatus().equals("Đang phục vụ")) {
+            Order currentOrder = databaseHelper.getCurrentOrderForTable(table.getId());
+            if (currentOrder != null && currentOrder.getStatus().equals("Chưa thanh toán")) {
+                holder.textViewUnpaidStatus.setVisibility(View.VISIBLE);
+            } else {
+                holder.textViewUnpaidStatus.setVisibility(View.GONE);
+            }
+        } else {
+            holder.textViewUnpaidStatus.setVisibility(View.GONE);
+        }
+        
         // Set note if available
         if (table.getNote() != null && !table.getNote().isEmpty()) {
             holder.textViewNote.setVisibility(View.VISIBLE);
@@ -105,6 +121,7 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
         public TextView textViewCapacity;
         public TextView textViewStatus;
         public TextView textViewNote;
+        public TextView textViewUnpaidStatus;
 
         public TableViewHolder(View view) {
             super(view);
@@ -113,6 +130,7 @@ public class TableAdapter extends RecyclerView.Adapter<TableAdapter.TableViewHol
             textViewCapacity = view.findViewById(R.id.textViewTableCapacity);
             textViewStatus = view.findViewById(R.id.textViewTableStatus);
             textViewNote = view.findViewById(R.id.textViewTableNote);
+            textViewUnpaidStatus = view.findViewById(R.id.textViewUnpaidStatus);
         }
     }
 } 

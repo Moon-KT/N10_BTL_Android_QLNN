@@ -6,6 +6,8 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
@@ -17,16 +19,18 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.qlnhahangsesan.database.DatabaseHelper;
 import com.example.qlnhahangsesan.model.Employee;
+import com.example.qlnhahangsesan.model.Position;
 
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Locale;
+import java.util.regex.Pattern;
 
 public class EmployeeDetailActivity extends AppCompatActivity {
 
     private TextView textViewTitle;
     private EditText editTextName;
-    private EditText editTextPosition;
+    private AutoCompleteTextView spinnerPosition;
     private EditText editTextPhone;
     private EditText editTextEmail;
     private EditText editTextAddress;
@@ -57,7 +61,7 @@ public class EmployeeDetailActivity extends AppCompatActivity {
         // Initialize views
         textViewTitle = findViewById(R.id.textViewTitle);
         editTextName = findViewById(R.id.editTextName);
-        editTextPosition = findViewById(R.id.editTextPosition);
+        spinnerPosition = findViewById(R.id.spinnerPosition);
         editTextPhone = findViewById(R.id.editTextPhone);
         editTextEmail = findViewById(R.id.editTextEmail);
         editTextAddress = findViewById(R.id.editTextAddress);
@@ -66,6 +70,9 @@ public class EmployeeDetailActivity extends AppCompatActivity {
         buttonCancel = findViewById(R.id.buttonCancel);
         buttonSave = findViewById(R.id.buttonSave);
         buttonDelete = findViewById(R.id.buttonDelete);
+
+        // Set up position spinner
+        setupPositionSpinner();
 
         // Set up date picker for start date
         editTextStartDate.setOnClickListener(v -> showDatePicker());
@@ -102,9 +109,37 @@ public class EmployeeDetailActivity extends AppCompatActivity {
         buttonDelete.setVisibility(isEditMode ? View.VISIBLE : View.GONE);
     }
 
+    private void setupPositionSpinner() {
+        // Create an array of position display names for the spinner
+        Position[] positions = Position.values();
+        String[] positionNames = new String[positions.length];
+        for (int i = 0; i < positions.length; i++) {
+            positionNames[i] = positions[i].getDisplayName();
+        }
+
+        // Create an adapter for the spinner
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                positionNames
+        );
+
+        // Set the adapter to the spinner
+        spinnerPosition.setAdapter(adapter);
+        
+        // Default to first position
+        spinnerPosition.setText(positions[0].getDisplayName(), false);
+    }
+
     private void populateEmployeeData() {
         editTextName.setText(employee.getName());
-        editTextPosition.setText(employee.getPosition());
+        
+        // Set the selected position in the spinner
+        Position position = employee.getPosition();
+        if (position != null) {
+            spinnerPosition.setText(position.getDisplayName(), false);
+        }
+        
         editTextPhone.setText(employee.getPhone());
         editTextEmail.setText(employee.getEmail());
         editTextAddress.setText(employee.getAddress());
@@ -131,7 +166,8 @@ public class EmployeeDetailActivity extends AppCompatActivity {
     private void saveEmployee() {
         // Get input values
         String name = editTextName.getText().toString().trim();
-        String position = editTextPosition.getText().toString().trim();
+        String positionString = spinnerPosition.getText().toString().trim();
+        Position position = Position.fromString(positionString);
         String phone = editTextPhone.getText().toString().trim();
         String email = editTextEmail.getText().toString().trim();
         String address = editTextAddress.getText().toString().trim();
@@ -145,16 +181,38 @@ public class EmployeeDetailActivity extends AppCompatActivity {
             return;
         }
 
-        if (TextUtils.isEmpty(position)) {
-            editTextPosition.setError("Vui lòng nhập chức vụ");
-            editTextPosition.requestFocus();
+        if (TextUtils.isEmpty(positionString)) {
+            spinnerPosition.setError("Vui lòng chọn chức vụ");
+            spinnerPosition.requestFocus();
             return;
         }
 
+        // Validate phone number (10-11 digits, starting with 0)
         if (TextUtils.isEmpty(phone)) {
             editTextPhone.setError("Vui lòng nhập số điện thoại");
             editTextPhone.requestFocus();
             return;
+        } else if (!phone.startsWith("0")) {
+            editTextPhone.setError("Số điện thoại phải bắt đầu bằng số 0");
+            editTextPhone.requestFocus();
+            return;
+        } else if (phone.length() < 10 || phone.length() > 11) {
+            editTextPhone.setError("Số điện thoại phải có từ 10-11 số");
+            editTextPhone.requestFocus();
+            return;
+        } else if (!Pattern.matches("^[0-9]+$", phone)) {
+            editTextPhone.setError("Số điện thoại chỉ được chứa các chữ số");
+            editTextPhone.requestFocus();
+            return;
+        }
+
+        // Validate email (must be in format aaa@gmail.com)
+        if (!TextUtils.isEmpty(email)) {
+            if (!Pattern.matches("^[a-zA-Z0-9._%+-]+@gmail\\.com$", email)) {
+                editTextEmail.setError("Email phải có định dạng aaa@gmail.com");
+                editTextEmail.requestFocus();
+                return;
+            }
         }
 
         if (TextUtils.isEmpty(salaryStr)) {
