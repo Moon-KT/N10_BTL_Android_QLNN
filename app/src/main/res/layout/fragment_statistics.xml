@@ -25,7 +25,6 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:hint="Từ ngày">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -42,7 +41,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:layout_marginStart="8dp"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:hint="Đến ngày">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -83,7 +81,6 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                     android:hint="Số lượng hiển thị">
 
                     <com.google.android.material.textfield.TextInputEditText
@@ -113,7 +110,6 @@
                 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/textInputTimeRange"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
@@ -139,7 +135,6 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:hint="Từ">
 
                         <com.google.android.material.textfield.TextInputEditText
@@ -155,7 +150,6 @@
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
                         android:layout_marginStart="4dp"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         android:hint="Đến">
 
                         <com.google.android.material.textfield.TextInputEditText
