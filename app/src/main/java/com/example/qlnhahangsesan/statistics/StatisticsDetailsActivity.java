@@ -1,11 +1,17 @@
 package com.example.qlnhahangsesan.statistics;
 
+import android.app.DatePickerDialog;
 import android.content.Intent;
 import android.graphics.Color;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -47,12 +53,23 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
     private PieChart pieChart;
     private BarChart barChart;
     private LineChart lineChart;
+    private LinearLayout layoutDateFilter;
+    private com.google.android.material.textfield.TextInputEditText editTextStartDate, editTextEndDate;
+    private Button buttonApplyDateFilter;
+    
+    // Calendar for date range selection
+    private Calendar startDateCalendar = Calendar.getInstance();
+    private Calendar endDateCalendar = Calendar.getInstance();
+    
     private static final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("vi", "VN"));
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private static final SimpleDateFormat dbDateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
 
     // Constants for statistic types
     public static final String STATS_TYPE = "stats_type";
+    public static final String STATS_LIMIT = "stats_limit";
+    public static final String STATS_START_DATE = "stats_start_date";
+    public static final String STATS_END_DATE = "stats_end_date";
     public static final int STATS_DEMO_DATA = 0;
     public static final int STATS_FOOD_BY_CATEGORY = 1;
     public static final int STATS_REVENUE_BY_DATE = 2;
@@ -71,6 +88,37 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         pieChart = findViewById(R.id.pieChart);
         barChart = findViewById(R.id.barChart);
         lineChart = findViewById(R.id.lineChart);
+        
+        // Initialize date filter components
+        layoutDateFilter = findViewById(R.id.layoutDateFilter);
+        editTextStartDate = findViewById(R.id.editTextStartDate);
+        editTextEndDate = findViewById(R.id.editTextEndDate);
+        buttonApplyDateFilter = findViewById(R.id.buttonApplyDateFilter);
+        
+        // Set up date selection listeners
+        editTextStartDate.setOnClickListener(v -> showDatePickerDialog(true));
+        editTextEndDate.setOnClickListener(v -> showDatePickerDialog(false));
+        
+        // Set up apply button listener
+        buttonApplyDateFilter.setOnClickListener(v -> {
+            // Get selected date range and reload data
+            String startDate = dbDateFormat.format(startDateCalendar.getTime());
+            String endDate = dbDateFormat.format(endDateCalendar.getTime());
+            
+            // Get current statistics type from title
+            String currentTitle = textViewTitle.getText().toString();
+            
+            // Apply filter based on current statistic type
+            if (currentTitle.contains("doanh thu")) {
+                loadRevenueForDateRange(startDate, endDate);
+            } else if (currentTitle.contains("menu")) {
+                loadMenuDataForDateRange(startDate, endDate);
+            }
+        });
+        
+        // Set default dates - start date is 30 days ago, end date is today
+        startDateCalendar.add(Calendar.DAY_OF_MONTH, -30);
+        updateDateDisplay();
 
         // Set up action bar
         if (getSupportActionBar() != null) {
@@ -118,14 +166,15 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewTitle.setText("Thống kê món ăn theo danh mục");
         textViewDescription.setText("Biểu đồ thể hiện phần trăm số lượng món ăn trong mỗi danh mục");
         
-        // Hide other charts
+        // Hide date filter and other charts
+        layoutDateFilter.setVisibility(View.GONE);
         pieChart.setVisibility(View.VISIBLE);
         barChart.setVisibility(View.GONE);
         lineChart.setVisibility(View.GONE);
         
-        List<StatisticItem> statistics = databaseHelper.getFoodCountByCategory();
+        List<StatisticItem> statistics = databaseHelper.getAllCategoryStatistics();
         
-        // If no data, show message instead of demo data
+        // If no data, show message
         if (statistics.isEmpty()) {
             pieChart.setVisibility(View.GONE);
             textViewDescription.setText("Không có dữ liệu về các danh mục món ăn. Hãy thêm một số món ăn để xem thống kê.");
@@ -134,7 +183,17 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         
         List<PieEntry> entries = new ArrayList<>();
         for (StatisticItem item : statistics) {
-            entries.add(new PieEntry((float) item.getValue(), item.getName()));
+            // Only add categories that have foods (value > 0)
+            if (item.getValue() > 0) {
+                entries.add(new PieEntry((float) item.getValue(), item.getName()));
+            }
+        }
+        
+        // If no entries with values > 0
+        if (entries.isEmpty()) {
+            pieChart.setVisibility(View.GONE);
+            textViewDescription.setText("Không có dữ liệu về các danh mục món ăn. Hãy thêm một số món ăn để xem thống kê.");
+            return;
         }
         
         PieDataSet dataSet = new PieDataSet(entries, "Danh mục món ăn");
@@ -162,43 +221,133 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
 
     private void showRevenueByDate() {
         textViewTitle.setText("Thống kê doanh thu theo ngày");
-        textViewDescription.setText("Biểu đồ thể hiện doanh thu của từng ngày trong 7 ngày qua\n(Nhấn vào điểm trên biểu đồ để xem chi tiết đơn hàng)");
+        textViewDescription.setText("Biểu đồ thể hiện doanh thu theo ngày\n(Nhấn vào điểm trên biểu đồ để xem chi tiết đơn hàng)");
         
-        // Hide other charts
+        // Show date filter and hide other charts
+        layoutDateFilter.setVisibility(View.VISIBLE);
         pieChart.setVisibility(View.GONE);
         barChart.setVisibility(View.GONE);
         lineChart.setVisibility(View.VISIBLE);
         
-        // Get date range (last 7 days)
-        Calendar endCalendar = Calendar.getInstance();
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.add(Calendar.DAY_OF_MONTH, -6);
+        // Get selected date range from date pickers
+        String startDate = dbDateFormat.format(startDateCalendar.getTime());
+        String endDate = dbDateFormat.format(endDateCalendar.getTime());
         
-        String startDate = dbDateFormat.format(startCalendar.getTime());
-        String endDate = dbDateFormat.format(endCalendar.getTime());
-        
+        // Load data with current date range
+        loadRevenueForDateRange(startDate, endDate);
+    }
+
+    // Helper method to load revenue data for a specific date range
+    private void loadRevenueForDateRange(String startDate, String endDate) {
         final List<StatisticItem> statistics = databaseHelper.getRevenueByDate(startDate, endDate);
         
-        // If no data, show message instead of demo data
+        // If no data, show message
         if (statistics.isEmpty()) {
             lineChart.setVisibility(View.GONE);
-            textViewDescription.setText("Không có dữ liệu doanh thu cho 7 ngày qua. Hãy thực hiện một số đơn hàng để xem thống kê.");
+            textViewDescription.setText("Không có dữ liệu doanh thu cho khoảng thời gian đã chọn. Hãy thực hiện một số đơn hàng để xem thống kê.");
             return;
         }
         
+        // Show chart if there is data
+        lineChart.setVisibility(View.VISIBLE);
         setupLineChart(statistics);
     }
 
+    // Show date picker dialog for date selection
+    private void showDatePickerDialog(boolean isStartDate) {
+        Calendar calendar = isStartDate ? startDateCalendar : endDateCalendar;
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    if (isStartDate) {
+                        startDateCalendar.set(year, month, dayOfMonth);
+                    } else {
+                        endDateCalendar.set(year, month, dayOfMonth);
+                    }
+                    updateDateDisplay();
+                    
+                    // Hiển thị nút Áp dụng và làm nổi bật để người dùng biết cần nhấn để cập nhật
+                    if (buttonApplyDateFilter != null) {
+                        buttonApplyDateFilter.setEnabled(true);
+                        // Làm nổi bật nút
+                        buttonApplyDateFilter.setBackgroundTintList(ColorStateList.valueOf(
+                                getResources().getColor(android.R.color.holo_blue_bright)));
+                    }
+
+                    // Hiển thị thông báo nhỏ hướng dẫn người dùng
+                    Toast.makeText(this, "Nhấn nút Áp dụng để cập nhật dữ liệu", Toast.LENGTH_SHORT).show();
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
+    }
+    
+    // Update the date display in text fields
+    private void updateDateDisplay() {
+        editTextStartDate.setText(dateFormat.format(startDateCalendar.getTime()));
+        editTextEndDate.setText(dateFormat.format(endDateCalendar.getTime()));
+    }
+
     private void showTopFoods() {
-        textViewTitle.setText("Top 10 món ăn bán chạy nhất");
-        textViewDescription.setText("Biểu đồ thể hiện số lượng bán ra của 10 món ăn bán chạy nhất");
+        // Lấy limit từ Intent, mặc định là 10 nếu không có
+        int limit = getIntent().getIntExtra(STATS_LIMIT, 10);
         
-        // Hide other charts
+        // Lấy thông tin khoảng thời gian (nếu có)
+        String startDate = getIntent().getStringExtra(STATS_START_DATE);
+        String endDate = getIntent().getStringExtra(STATS_END_DATE);
+        
+        // Debug log để xác nhận giá trị nhận được
+        Log.d("StatisticsDetailsActivity", "Nhận limit = " + limit + " từ Intent");
+        Log.d("StatisticsDetailsActivity", "Khoảng thời gian: " + startDate + " đến " + endDate);
+        
+        // Tạo tiêu đề dựa vào thông tin lọc
+        StringBuilder titleBuilder = new StringBuilder("Top " + limit + " món ăn bán chạy nhất");
+        if (startDate != null && endDate != null) {
+            try {
+                Date startDateObj = dbDateFormat.parse(startDate);
+                Date endDateObj = dbDateFormat.parse(endDate);
+                
+                titleBuilder.append(" từ ")
+                        .append(dateFormat.format(startDateObj))
+                        .append(" đến ")
+                        .append(dateFormat.format(endDateObj));
+            } catch (Exception e) {
+                Log.e("StatisticsDetailsActivity", "Lỗi parse date", e);
+            }
+        } else if (startDate != null) {
+            try {
+                Date startDateObj = dbDateFormat.parse(startDate);
+                titleBuilder.append(" từ ").append(dateFormat.format(startDateObj));
+            } catch (Exception e) {
+                Log.e("StatisticsDetailsActivity", "Lỗi parse date", e);
+            }
+        } else if (endDate != null) {
+            try {
+                Date endDateObj = dbDateFormat.parse(endDate);
+                titleBuilder.append(" đến ").append(dateFormat.format(endDateObj));
+            } catch (Exception e) {
+                Log.e("StatisticsDetailsActivity", "Lỗi parse date", e);
+            }
+        }
+        
+        textViewTitle.setText(titleBuilder.toString());
+        textViewDescription.setText("Biểu đồ thể hiện số lượng bán ra của các món ăn phổ biến nhất");
+        
+        // Hide date filter and other charts
+        layoutDateFilter.setVisibility(View.GONE);
         pieChart.setVisibility(View.GONE);
         barChart.setVisibility(View.VISIBLE);
         lineChart.setVisibility(View.GONE);
         
-        List<StatisticItem> statistics = databaseHelper.getTopFoods(10);
+        // Lấy dữ liệu theo khoảng thời gian (nếu có)
+        List<StatisticItem> statistics;
+        if (startDate != null || endDate != null) {
+            statistics = databaseHelper.getTopFoodsByDateRange(limit, startDate, endDate);
+        } else {
+            statistics = databaseHelper.getTopFoods(limit);
+        }
         
         // If no data, show message instead of demo data
         if (statistics.isEmpty()) {
@@ -246,7 +395,8 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewTitle.setText("Thống kê bàn theo trạng thái");
         textViewDescription.setText("Biểu đồ thể hiện tỷ lệ bàn theo từng trạng thái");
         
-        // Hide other charts
+        // Hide date filter and other charts
+        layoutDateFilter.setVisibility(View.GONE);
         pieChart.setVisibility(View.VISIBLE);
         barChart.setVisibility(View.GONE);
         lineChart.setVisibility(View.GONE);
@@ -305,29 +455,35 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
 
     private void showMenuByDate() {
         textViewTitle.setText("Thống kê số lượng món ăn trong menu");
-        textViewDescription.setText("Biểu đồ thể hiện số lượng món ăn trong menu theo ngày trong 7 ngày qua");
+        textViewDescription.setText("Biểu đồ thể hiện số lượng món ăn trong menu theo ngày");
         
-        // Hide other charts
+        // Show date filter and hide other charts
+        layoutDateFilter.setVisibility(View.VISIBLE);
         pieChart.setVisibility(View.GONE);
         barChart.setVisibility(View.VISIBLE);
         lineChart.setVisibility(View.GONE);
         
-        // Get date range (last 7 days)
-        Calendar endCalendar = Calendar.getInstance();
-        Calendar startCalendar = Calendar.getInstance();
-        startCalendar.add(Calendar.DAY_OF_MONTH, -6);
+        // Get selected date range from date pickers
+        String startDate = dbDateFormat.format(startDateCalendar.getTime());
+        String endDate = dbDateFormat.format(endDateCalendar.getTime());
         
-        String startDate = dbDateFormat.format(startCalendar.getTime());
-        String endDate = dbDateFormat.format(endCalendar.getTime());
-        
+        // Load data with current date range
+        loadMenuDataForDateRange(startDate, endDate);
+    }
+    
+    // Helper method to load menu data for a specific date range
+    private void loadMenuDataForDateRange(String startDate, String endDate) {
         List<StatisticItem> statistics = databaseHelper.getDailyMenuCountByDate(startDate, endDate);
         
-        // If no data, show message instead of demo data
+        // If no data, show message
         if (statistics.isEmpty()) {
             barChart.setVisibility(View.GONE);
-            textViewDescription.setText("Không có dữ liệu về menu hàng ngày. Hãy thêm một số món vào menu hàng ngày để xem thống kê.");
+            textViewDescription.setText("Không có dữ liệu về menu hàng ngày trong khoảng thời gian đã chọn. Hãy thêm một số món vào menu hàng ngày để xem thống kê.");
             return;
         }
+        
+        // Show barChart if there is data
+        barChart.setVisibility(View.VISIBLE);
         
         List<BarEntry> entries = new ArrayList<>();
         List<String> xAxisLabels = new ArrayList<>();
@@ -357,13 +513,12 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         barChart.setDescription(description);
         barChart.setData(barData);
         
-        // Customize X Axis to show dates
+        // Customize X Axis to show date labels
         XAxis xAxis = barChart.getXAxis();
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setValueFormatter(new IndexAxisValueFormatter(xAxisLabels));
         xAxis.setGranularity(1f);
         xAxis.setLabelRotationAngle(45f);
-        xAxis.setLabelCount(statistics.size());
         
         barChart.getAxisRight().setEnabled(false);
         barChart.setFitBars(true);
@@ -375,7 +530,8 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewTitle.setText("Biểu đồ thống kê mẫu");
         textViewDescription.setText("Đây là biểu đồ mẫu với dữ liệu giả lập để minh họa. Không phải dữ liệu thực tế từ cơ sở dữ liệu.");
         
-        // Hiển thị tất cả biểu đồ để demo
+        // Hide date filter and show all charts for demo
+        layoutDateFilter.setVisibility(View.GONE);
         pieChart.setVisibility(View.VISIBLE);
         barChart.setVisibility(View.VISIBLE);
         lineChart.setVisibility(View.VISIBLE);
@@ -553,14 +709,20 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
             @Override
             public void onValueSelected(Entry e, Highlight h) {
                 int index = (int) e.getX();
+                Log.d("StatisticsDetailsActivity", "onValueSelected: Entry selected at index " + index + " with value " + e.getY());
+                
                 if (index >= 0 && index < originalDates.size()) {
                     String selectedDate = originalDates.get(index);
+                    Log.d("StatisticsDetailsActivity", "onValueSelected: Selected date: " + selectedDate);
                     
                     // Create intent to open DayOrdersActivity
                     Intent intent = new Intent(StatisticsDetailsActivity.this, 
                             com.example.qlnhahangsesan.DayOrdersActivity.class);
                     intent.putExtra("date", selectedDate);
+                    Log.d("StatisticsDetailsActivity", "onValueSelected: Starting DayOrdersActivity with date: " + selectedDate);
                     startActivity(intent);
+                } else {
+                    Log.e("StatisticsDetailsActivity", "onValueSelected: Index out of bounds - index: " + index + ", size: " + originalDates.size());
                 }
             }
 
@@ -651,7 +813,8 @@ public class StatisticsDetailsActivity extends AppCompatActivity {
         textViewTitle.setText("Không có dữ liệu thống kê");
         textViewDescription.setText("Không có dữ liệu thống kê phù hợp với yêu cầu của bạn.");
         
-        // Hide all charts
+        // Hide date filter and all charts
+        layoutDateFilter.setVisibility(View.GONE);
         pieChart.setVisibility(View.GONE);
         barChart.setVisibility(View.GONE);
         lineChart.setVisibility(View.GONE);

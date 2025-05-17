@@ -31,6 +31,65 @@
             android:gravity="center"
             android:layout_marginBottom="16dp" />
         
+        <!-- Bộ lọc thời gian cho thống kê doanh thu -->
+        <LinearLayout
+            android:id="@+id/layoutDateFilter"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="visible"
+            android:layout_marginBottom="16dp">
+            
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+                
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="8dp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editTextStartDate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Từ ngày"
+                        android:focusable="false"
+                        android:inputType="none" />
+                        
+                </com.google.android.material.textfield.TextInputLayout>
+                
+                <com.google.android.material.textfield.TextInputLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+                    
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/editTextEndDate"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Đến ngày"
+                        android:focusable="false"
+                        android:inputType="none" />
+                        
+                </com.google.android.material.textfield.TextInputLayout>
+            </LinearLayout>
+            
+            <Button
+                android:id="@+id/buttonApplyDateFilter"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Áp dụng"
+                android:textStyle="bold"
+                android:textSize="16sp"
+                android:backgroundTint="@android:color/holo_blue_light"
+                android:layout_marginTop="8dp" />
+        </LinearLayout>
+        
         <com.github.mikephil.charting.charts.PieChart
             android:id="@+id/pieChart"
             android:layout_width="match_parent"

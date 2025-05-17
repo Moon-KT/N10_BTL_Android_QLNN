@@ -9,6 +9,7 @@ import android.graphics.pdf.PdfDocument;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
+import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -45,7 +46,7 @@ import java.util.List;
 import java.util.Locale;
 
 public class TableDetailActivity extends AppCompatActivity {
-    
+
     private static final String TAG = "TableDetailActivity";
     private static final int REQUEST_FOOD_SELECTION = 100;
     
@@ -58,6 +59,8 @@ public class TableDetailActivity extends AppCompatActivity {
     private Button buttonSave;
     private Button buttonCancel;
     private LinearLayout buttonContainer;
+    private Button buttonDeleteTable;
+    private Button buttonSaveTableChanges;
     
     // Order section views
     private TextView textViewOrderSectionTitle;
@@ -69,7 +72,7 @@ public class TableDetailActivity extends AppCompatActivity {
     private TextView textViewTotalAmount;
     private CheckBox checkBoxPrintReceipt;
     private Button buttonCheckout;
-    
+
     // Data and state
     private DatabaseHelper databaseHelper;
     private Table currentTable;
@@ -97,7 +100,7 @@ public class TableDetailActivity extends AppCompatActivity {
         
         // Determine the mode (add, edit, or view)
         determineMode();
-        
+
         // Set up action bar
         setupActionBar();
 
@@ -115,6 +118,8 @@ public class TableDetailActivity extends AppCompatActivity {
         buttonSave = findViewById(R.id.buttonSave);
         buttonCancel = findViewById(R.id.buttonCancel);
         buttonContainer = findViewById(R.id.buttonContainer);
+        buttonDeleteTable = findViewById(R.id.buttonDeleteTable);
+        buttonSaveTableChanges = findViewById(R.id.buttonSaveTableChanges);
         
         // Order section views
         textViewOrderSectionTitle = findViewById(R.id.textViewOrderSectionTitle);
@@ -183,6 +188,8 @@ public class TableDetailActivity extends AppCompatActivity {
         buttonCancel.setOnClickListener(v -> finish());
         buttonOrder.setOnClickListener(v -> openFoodSelection());
         buttonCheckout.setOnClickListener(v -> showCheckoutConfirmation());
+        buttonDeleteTable.setOnClickListener(v -> showDeleteConfirmation());
+        buttonSaveTableChanges.setOnClickListener(v -> saveTableChanges());
     }
     
     private void setupAddMode() {
@@ -220,11 +227,15 @@ public class TableDetailActivity extends AppCompatActivity {
         // Populate fields
         populateFields();
         
-        // Disable editing
-        setFieldsReadOnly(true);
+        // Enable editing of table information in view mode
+        setFieldsReadOnly(false);
         
         // Hide save/cancel buttons
         buttonContainer.setVisibility(View.GONE);
+        
+        // Show delete button and save changes button
+        buttonDeleteTable.setVisibility(View.VISIBLE);
+        buttonSaveTableChanges.setVisibility(View.VISIBLE);
         
         // Show order section
         textViewOrderSectionTitle.setVisibility(View.VISIBLE);
@@ -248,10 +259,10 @@ public class TableDetailActivity extends AppCompatActivity {
     }
 
     private void populateFields() {
-        editTextName.setText(currentTable.getName());
-        editTextCapacity.setText(String.valueOf(currentTable.getCapacity()));
-        editTextNote.setText(currentTable.getNote());
-        
+            editTextName.setText(currentTable.getName());
+            editTextCapacity.setText(String.valueOf(currentTable.getCapacity()));
+            editTextNote.setText(currentTable.getNote());
+            
         // Set status spinner
         String tableStatus = currentTable.getStatus();
         ArrayAdapter<CharSequence> statusAdapter = (ArrayAdapter<CharSequence>) spinnerStatus.getAdapter();
@@ -287,26 +298,26 @@ public class TableDetailActivity extends AppCompatActivity {
         String status = spinnerStatus.getSelectedItem().toString();
         String type = spinnerType.getSelectedItem().toString();
         String note = editTextNote.getText().toString().trim();
-        
+
         if (name.isEmpty()) {
             editTextName.setError("Số bàn không được để trống");
             editTextName.requestFocus();
             return;
         }
-        
+
         if (capacityStr.isEmpty()) {
             editTextCapacity.setError(getString(R.string.capacity) + " không được để trống");
             editTextCapacity.requestFocus();
             return;
         }
-        
+
         int capacity = Integer.parseInt(capacityStr);
-        if (capacity <= 0) {
+            if (capacity <= 0) {
             editTextCapacity.setError(getString(R.string.capacity) + " phải lớn hơn 0");
             editTextCapacity.requestFocus();
             return;
         }
-        
+
         // Kiểm tra số bàn đã tồn tại chưa
         if (databaseHelper.isTableNumberExists(name, isEditMode ? currentTable.getId() : 0)) {
             editTextName.setError("Số bàn đã tồn tại");
@@ -320,7 +331,7 @@ public class TableDetailActivity extends AppCompatActivity {
         currentTable.setStatus(status);
         currentTable.setNote(note);
         currentTable.setTableType(type);
-        
+
         // Save to database
         if (isEditMode) {
             boolean success = databaseHelper.updateTable(currentTable);
@@ -421,7 +432,7 @@ public class TableDetailActivity extends AppCompatActivity {
         
         if (currentStatus.equals(availableStatus)) {
             // Update table status
-            currentTable.setStatus(occupiedStatus);
+        currentTable.setStatus(occupiedStatus);
             databaseHelper.updateTable(currentTable);
             
             // Update spinner to show new status
@@ -571,28 +582,28 @@ public class TableDetailActivity extends AppCompatActivity {
         
         // Update order status to "Đã thanh toán"
         currentOrder.setStatus("Đã thanh toán");
-        boolean success = databaseHelper.updateOrderStatus(currentOrder.getId(), "Đã thanh toán");
-        
-        if (success) {
+            boolean success = databaseHelper.updateOrderStatus(currentOrder.getId(), "Đã thanh toán");
+                
+                if (success) {
             // Check if receipt should be printed
             if (checkBoxPrintReceipt.isChecked()) {
                 generateReceipt();
             }
             
             // Update table status to "Trống"
-            String availableStatus = getString(R.string.status_available);
-            currentTable.setStatus(availableStatus);
-            databaseHelper.updateTable(currentTable);
-            
+                    String availableStatus = getString(R.string.status_available);
+                    currentTable.setStatus(availableStatus);
+                    databaseHelper.updateTable(currentTable);
+                    
             // Update spinner to show new status
             ArrayAdapter<CharSequence> adapter = (ArrayAdapter<CharSequence>) spinnerStatus.getAdapter();
-            for (int i = 0; i < adapter.getCount(); i++) {
-                if (adapter.getItem(i).toString().equals(availableStatus)) {
-                    spinnerStatus.setSelection(i);
-                    break;
-                }
-            }
-            
+                    for (int i = 0; i < adapter.getCount(); i++) {
+                        if (adapter.getItem(i).toString().equals(availableStatus)) {
+                            spinnerStatus.setSelection(i);
+                            break;
+                        }
+                    }
+                    
             // Show success message
             Toast.makeText(this, "Thanh toán thành công!", Toast.LENGTH_SHORT).show();
             
@@ -601,7 +612,7 @@ public class TableDetailActivity extends AppCompatActivity {
             orderItems.clear();
             orderFoodAdapter.notifyDataSetChanged();
             showEmptyOrderList();
-        } else {
+                } else {
             Toast.makeText(this, "Lỗi khi thanh toán", Toast.LENGTH_SHORT).show();
         }
     }
@@ -716,11 +727,104 @@ public class TableDetailActivity extends AppCompatActivity {
     }
 
     @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        // Chỉ hiển thị menu xóa khi ở chế độ xem
+        if (isViewMode) {
+            getMenuInflater().inflate(R.menu.table_detail_menu, menu);
+        }
+        return true;
+    }
+
+    @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
         if (item.getItemId() == android.R.id.home) {
             finish();
             return true;
+        } else if (item.getItemId() == R.id.action_delete_table) {
+            showDeleteConfirmation();
+            return true;
         }
         return super.onOptionsItemSelected(item);
+    }
+    
+    private void showDeleteConfirmation() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Xác nhận xóa");
+        builder.setMessage("Bạn có chắc chắn muốn xóa bàn này không?");
+        builder.setPositiveButton("Xóa", (dialog, which) -> {
+            deleteTable();
+        });
+        builder.setNegativeButton("Hủy", null);
+        builder.show();
+    }
+    
+    private void deleteTable() {
+        if (currentTable != null && currentTable.getId() > 0) {
+            // Kiểm tra nếu bàn đang có đơn hàng
+            if (currentOrder != null) {
+                Toast.makeText(this, "Không thể xóa bàn đang có đơn hàng!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            
+            boolean success = databaseHelper.deleteTable(currentTable.getId());
+            if (success) {
+                Toast.makeText(this, "Đã xóa bàn thành công", Toast.LENGTH_SHORT).show();
+                setResult(RESULT_OK);
+                finish();
+            } else {
+                Toast.makeText(this, "Lỗi khi xóa bàn", Toast.LENGTH_SHORT).show();
+            }
+        }
+    }
+
+    private void saveTableChanges() {
+        // Validate input
+        String name = editTextName.getText().toString().trim();
+        String capacityStr = editTextCapacity.getText().toString().trim();
+        String status = spinnerStatus.getSelectedItem().toString();
+        String type = spinnerType.getSelectedItem().toString();
+        String note = editTextNote.getText().toString().trim();
+        
+        if (name.isEmpty()) {
+            editTextName.setError("Số bàn không được để trống");
+            editTextName.requestFocus();
+            return;
+        }
+        
+        if (capacityStr.isEmpty()) {
+            editTextCapacity.setError(getString(R.string.capacity) + " không được để trống");
+            editTextCapacity.requestFocus();
+            return;
+        }
+        
+        int capacity = Integer.parseInt(capacityStr);
+        if (capacity <= 0) {
+            editTextCapacity.setError(getString(R.string.capacity) + " phải lớn hơn 0");
+            editTextCapacity.requestFocus();
+            return;
+        }
+        
+        // Kiểm tra số bàn đã tồn tại chưa (trừ bàn hiện tại)
+        if (databaseHelper.isTableNumberExists(name, currentTable.getId())) {
+            editTextName.setError("Số bàn đã tồn tại");
+            editTextName.requestFocus();
+            return;
+        }
+        
+        // Update table object
+        currentTable.setName(name);
+        currentTable.setCapacity(capacity);
+        currentTable.setStatus(status);
+        currentTable.setNote(note);
+        currentTable.setTableType(type);
+        
+        // Save to database
+        boolean success = databaseHelper.updateTable(currentTable);
+        if (success) {
+            Toast.makeText(this, "Đã lưu thay đổi", Toast.LENGTH_SHORT).show();
+            // Không đóng activity để người dùng có thể tiếp tục thao tác
+        } else {
+            Toast.makeText(this, "Lỗi khi lưu thay đổi", Toast.LENGTH_SHORT).show();
+        }
     }
 } 

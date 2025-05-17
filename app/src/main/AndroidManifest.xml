@@ -79,11 +79,17 @@
         <activity
             android:name=".DayOrdersActivity"
             android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
             android:parentActivityName=".statistics.StatisticsDetailsActivity" />
         <activity
             android:name=".OrderDetailsActivity"
             android:exported="false"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar"
             android:parentActivityName=".DayOrdersActivity" />
+        <activity
+            android:name=".FoodSelectionActivity"
+            android:exported="false"
+            android:parentActivityName=".TableDetailActivity" />
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.provider"

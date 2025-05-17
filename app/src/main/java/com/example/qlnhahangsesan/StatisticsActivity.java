@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -107,6 +108,35 @@ public class StatisticsActivity extends AppCompatActivity {
             int statsType = getStatsTypeFromCurrentTab();
             Intent intent = new Intent(StatisticsActivity.this, StatisticsDetailsActivity.class);
             intent.putExtra(StatisticsDetailsActivity.STATS_TYPE, statsType);
+            
+            // Nếu là thống kê món ăn phổ biến, truyền thêm limit và khoảng thời gian
+            if (statsType == StatisticsDetailsActivity.STATS_TOP_FOODS) {
+                StatisticsFragment currentFragment = getCurrentStatisticsFragment();
+                if (currentFragment != null) {
+                    // Lấy giá trị limit hiện tại từ fragment
+                    int limit = currentFragment.getTopFoodsLimit();
+                    intent.putExtra(StatisticsDetailsActivity.STATS_LIMIT, limit);
+                    
+                    // Lấy thông tin khoảng thời gian
+                    String[] dateRange = currentFragment.getTopFoodsDateRange();
+                    if (dateRange != null) {
+                        if (dateRange[0] != null) {
+                            intent.putExtra(StatisticsDetailsActivity.STATS_START_DATE, dateRange[0]);
+                        }
+                        if (dateRange[1] != null) {
+                            intent.putExtra(StatisticsDetailsActivity.STATS_END_DATE, dateRange[1]);
+                        }
+                    }
+                    
+                    // Log để debug
+                    Log.d("StatisticsActivity", "FAB: Truyền limit = " + limit + " sang màn hình biểu đồ chi tiết");
+                    Log.d("StatisticsActivity", "FAB: Truyền khoảng thời gian: " + 
+                            (dateRange != null ? (dateRange[0] + " đến " + dateRange[1]) : "tất cả thời gian"));
+                } else {
+                    Log.e("StatisticsActivity", "FAB: Không thể lấy StatisticsFragment hiện tại");
+                }
+            }
+            
             startActivity(intent);
         });
     }
@@ -165,6 +195,35 @@ public class StatisticsActivity extends AppCompatActivity {
             int statsType = getStatsTypeFromCurrentTab();
             Intent intent = new Intent(StatisticsActivity.this, StatisticsDetailsActivity.class);
             intent.putExtra(StatisticsDetailsActivity.STATS_TYPE, statsType);
+            
+            // Nếu là thống kê món ăn phổ biến, truyền thêm limit và khoảng thời gian
+            if (statsType == StatisticsDetailsActivity.STATS_TOP_FOODS) {
+                StatisticsFragment currentFragment = getCurrentStatisticsFragment();
+                if (currentFragment != null) {
+                    // Lấy giá trị limit hiện tại từ fragment
+                    int limit = currentFragment.getTopFoodsLimit();
+                    intent.putExtra(StatisticsDetailsActivity.STATS_LIMIT, limit);
+                    
+                    // Lấy thông tin khoảng thời gian
+                    String[] dateRange = currentFragment.getTopFoodsDateRange();
+                    if (dateRange != null) {
+                        if (dateRange[0] != null) {
+                            intent.putExtra(StatisticsDetailsActivity.STATS_START_DATE, dateRange[0]);
+                        }
+                        if (dateRange[1] != null) {
+                            intent.putExtra(StatisticsDetailsActivity.STATS_END_DATE, dateRange[1]);
+                        }
+                    }
+                    
+                    // Log để debug
+                    Log.d("StatisticsActivity", "Truyền limit = " + limit + " sang màn hình biểu đồ chi tiết");
+                    Log.d("StatisticsActivity", "Truyền khoảng thời gian: " + 
+                            (dateRange != null ? (dateRange[0] + " đến " + dateRange[1]) : "tất cả thời gian"));
+                } else {
+                    Log.e("StatisticsActivity", "Không thể lấy StatisticsFragment hiện tại");
+                }
+            }
+            
             startActivity(intent);
             return true;
         } else if (id == R.id.action_settings) {
@@ -292,9 +351,24 @@ public class StatisticsActivity extends AppCompatActivity {
     
     private StatisticsFragment getCurrentStatisticsFragment() {
         try {
-            // Lấy fragment hiện tại từ ViewPager
-            return (StatisticsFragment) getSupportFragmentManager()
-                    .findFragmentByTag("f" + viewPager.getCurrentItem());
+            // Lấy adapter và truy cập trực tiếp vào fragment hiện tại
+            StatisticsPagerAdapter adapter = (StatisticsPagerAdapter) viewPager.getAdapter();
+            if (adapter != null) {
+                Fragment fragment = adapter.getFragment(viewPager.getCurrentItem());
+                if (fragment instanceof StatisticsFragment) {
+                    return (StatisticsFragment) fragment;
+                }
+            }
+            
+            // Phương pháp dự phòng: tìm fragment bằng tag
+            String fragmentTag = "f" + viewPager.getCurrentItem();
+            Fragment fragment = getSupportFragmentManager().findFragmentByTag(fragmentTag);
+            if (fragment instanceof StatisticsFragment) {
+                return (StatisticsFragment) fragment;
+            }
+            
+            Log.e("StatisticsActivity", "Không thể tìm thấy StatisticsFragment hiện tại");
+            return null;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -310,6 +384,8 @@ public class StatisticsActivity extends AppCompatActivity {
     }
     
     private class StatisticsPagerAdapter extends FragmentStateAdapter {
+        // Mảng lưu trữ các fragment đã tạo
+        private final Fragment[] mFragments = new Fragment[NUM_PAGES];
         
         public StatisticsPagerAdapter(@NonNull FragmentActivity fragmentActivity) {
             super(fragmentActivity);
@@ -318,8 +394,13 @@ public class StatisticsActivity extends AppCompatActivity {
         @NonNull
         @Override
         public Fragment createFragment(int position) {
-            Fragment fragment;
+            // Kiểm tra nếu fragment đã được tạo trước đó
+            if (mFragments[position] != null) {
+                return mFragments[position];
+            }
             
+            // Tạo mới fragment nếu chưa có
+            Fragment fragment;
             switch (position) {
                 case 0:
                     fragment = StatisticsFragment.newInstance(StatisticsFragment.STATS_TYPE_FOOD_CATEGORY);
@@ -341,7 +422,19 @@ public class StatisticsActivity extends AppCompatActivity {
                     break;
             }
             
+            // Lưu fragment vào mảng để sử dụng lại sau này
+            mFragments[position] = fragment;
             return fragment;
+        }
+        
+        /**
+         * Lấy fragment hiện tại theo vị trí
+         */
+        public Fragment getFragment(int position) {
+            if (position >= 0 && position < mFragments.length) {
+                return mFragments[position];
+            }
+            return null;
         }
         
         @Override

@@ -6,9 +6,11 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.example.qlnhahangsesan.adapter.DayOrderAdapter;
 import com.example.qlnhahangsesan.database.DatabaseHelper;
@@ -22,6 +24,8 @@ import java.util.Locale;
 
 public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdapter.OnOrderClickListener {
 
+    private static final String TAG = "DayOrdersActivity";
+    
     private RecyclerView recyclerViewDayOrders;
     private TextView textViewDayTitle;
     private TextView textViewTotalOrders;
@@ -37,6 +41,8 @@ public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdap
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_day_orders);
+        
+        Log.d(TAG, "onCreate: Activity started");
         
         // Initialize database helper
         databaseHelper = DatabaseHelper.getInstance(this);
@@ -59,20 +65,28 @@ public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdap
         textViewEmptyOrders = findViewById(R.id.textViewEmptyOrders);
         
         // Get date from intent
-        if (getIntent().hasExtra("date")) {
-            date = getIntent().getStringExtra("date");
+        Intent intent = getIntent();
+        if (intent != null && intent.hasExtra("date")) {
+            date = intent.getStringExtra("date");
+            Log.d(TAG, "onCreate: Received date from intent: " + date);
             
             // Load orders for this date
             loadOrders();
         } else {
             // Show error and finish activity
+            Log.e(TAG, "onCreate: No date provided in intent");
+            Toast.makeText(this, "Lỗi: Không có ngày được chọn", Toast.LENGTH_SHORT).show();
             finish();
         }
     }
     
     private void loadOrders() {
+        Log.d(TAG, "loadOrders: Loading orders for date: " + date);
+        
         // Get orders for the specified date
         ordersList = databaseHelper.getOrdersByDate(date);
+        
+        Log.d(TAG, "loadOrders: Found " + ordersList.size() + " orders for date: " + date);
         
         // Format the date for display
         try {
@@ -81,17 +95,21 @@ public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdap
             Date dateObj = inputFormat.parse(date);
             String formattedDate = outputFormat.format(dateObj);
             textViewDayTitle.setText("Đơn hàng ngày " + formattedDate);
+            Log.d(TAG, "loadOrders: Formatted date for display: " + formattedDate);
         } catch (Exception e) {
+            Log.e(TAG, "loadOrders: Error formatting date", e);
             textViewDayTitle.setText("Đơn hàng ngày " + date);
         }
         
         // Update UI based on results
         if (ordersList.isEmpty()) {
+            Log.d(TAG, "loadOrders: No orders found, showing empty state");
             recyclerViewDayOrders.setVisibility(View.GONE);
             textViewEmptyOrders.setVisibility(View.VISIBLE);
             textViewTotalOrders.setText("Tổng số đơn hàng: 0");
             textViewDayTotal.setText("Tổng doanh thu: " + currencyFormat.format(0));
         } else {
+            Log.d(TAG, "loadOrders: Displaying " + ordersList.size() + " orders");
             recyclerViewDayOrders.setVisibility(View.VISIBLE);
             textViewEmptyOrders.setVisibility(View.GONE);
             
@@ -107,6 +125,7 @@ public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdap
             for (Order order : ordersList) {
                 totalRevenue += order.getTotalAmount();
             }
+            Log.d(TAG, "loadOrders: Total revenue: " + totalRevenue);
             textViewDayTotal.setText("Tổng doanh thu: " + currencyFormat.format(totalRevenue));
         }
     }
@@ -114,6 +133,7 @@ public class DayOrdersActivity extends AppCompatActivity implements DayOrderAdap
     @Override
     public void onOrderClick(Order order) {
         // Open OrderDetailsActivity with the selected order
+        Log.d(TAG, "onOrderClick: Opening details for order ID: " + order.getId());
         Intent intent = new Intent(this, OrderDetailsActivity.class);
         intent.putExtra("orderId", order.getId());
         startActivity(intent);

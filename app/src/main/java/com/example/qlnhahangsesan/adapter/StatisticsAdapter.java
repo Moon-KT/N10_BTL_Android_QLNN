@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.qlnhahangsesan.DayOrdersActivity;
+import com.example.qlnhahangsesan.FoodListActivity;
 import com.example.qlnhahangsesan.R;
 import com.example.qlnhahangsesan.model.StatisticItem;
 
@@ -33,6 +34,7 @@ public class StatisticsAdapter extends RecyclerView.Adapter<StatisticsAdapter.St
     private SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
 
     // Statistic types from StatisticsFragment
+    public static final int STATS_TYPE_FOOD_CATEGORY = 1;
     public static final int STATS_TYPE_REVENUE = 2;
 
     public StatisticsAdapter(Context context, List<StatisticItem> statisticsList, boolean isMonetary, int statisticType) {
@@ -79,12 +81,19 @@ public class StatisticsAdapter extends RecyclerView.Adapter<StatisticsAdapter.St
             holder.textViewValue.setText(numberFormat.format(item.getIntValue()));
         }
         
-        // Set click listener for revenue statistics or other date-based statistics
+        // Set click listeners based on statistic type
         if (statisticType == STATS_TYPE_REVENUE) {
             holder.itemView.setOnClickListener(v -> {
                 // Open the DayOrdersActivity with the date
                 Intent intent = new Intent(context, DayOrdersActivity.class);
                 intent.putExtra("date", item.getName()); // Pass the original date format (yyyy-MM-dd)
+                context.startActivity(intent);
+            });
+        } else if (statisticType == STATS_TYPE_FOOD_CATEGORY) {
+            holder.itemView.setOnClickListener(v -> {
+                // Open the FoodListActivity with the category
+                Intent intent = new Intent(context, FoodListActivity.class);
+                intent.putExtra("category", item.getName());
                 context.startActivity(intent);
             });
         }

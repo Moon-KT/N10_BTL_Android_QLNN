@@ -2,6 +2,7 @@ package com.example.qlnhahangsesan;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
@@ -13,6 +14,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.example.qlnhahangsesan.adapter.FoodSelectionAdapter;
@@ -100,18 +102,38 @@ public class FoodSelectionActivity extends AppCompatActivity {
         SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         String today = dateFormat.format(new Date());
         
+        // Log để debug
+        Log.d("FoodSelectionActivity", "Loading food items for date: " + today);
+        
         if (todayOnly) {
             // Get items from today's menu only
             foodList = databaseHelper.getMenuItemsForDate(today);
+            Log.d("FoodSelectionActivity", "Found " + (foodList != null ? foodList.size() : 0) + " items in today's menu");
+            
+            // Nếu không có món nào trong menu hôm nay, hỏi người dùng có muốn xem tất cả các món không
+            if (foodList == null || foodList.isEmpty()) {
+                showNoMenuItemsDialog();
+                return;
+            }
         } else {
             // Get all available food items
             foodList = databaseHelper.getAllAvailableFoods();
+            Log.d("FoodSelectionActivity", "Found " + (foodList != null ? foodList.size() : 0) + " available food items");
+        }
+        
+        // Đảm bảo foodList không null
+        if (foodList == null) {
+            foodList = new ArrayList<>();
         }
         
         if (foodList.isEmpty()) {
             textViewEmptyMenu.setVisibility(View.VISIBLE);
             listViewFoods.setVisibility(View.GONE);
             buttonConfirm.setEnabled(false);
+            
+            // Thêm thông báo toast để người dùng biết
+            Toast.makeText(this, "Không có món ăn nào có sẵn", Toast.LENGTH_LONG).show();
+            Log.w("FoodSelectionActivity", "No food items found");
         } else {
             textViewEmptyMenu.setVisibility(View.GONE);
             listViewFoods.setVisibility(View.VISIBLE);
@@ -189,6 +211,28 @@ public class FoodSelectionActivity extends AppCompatActivity {
         resultIntent.putExtra("selectedItems", (Serializable) selectedItems);
         setResult(RESULT_OK, resultIntent);
         finish();
+    }
+
+    private void showNoMenuItemsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Không có món ăn nào trong menu hôm nay");
+        builder.setMessage("Không có món ăn nào được thêm vào menu hôm nay. Bạn có muốn xem tất cả các món ăn có sẵn không?");
+        
+        builder.setPositiveButton("Có", (dialog, which) -> {
+            todayOnly = false;
+            loadFoodItems();
+        });
+        
+        builder.setNegativeButton("Không", (dialog, which) -> {
+            // Hiển thị danh sách trống
+            foodList = new ArrayList<>();
+            textViewEmptyMenu.setVisibility(View.VISIBLE);
+            listViewFoods.setVisibility(View.GONE);
+            buttonConfirm.setEnabled(false);
+        });
+        
+        builder.setCancelable(false);
+        builder.show();
     }
 
     @Override

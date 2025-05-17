@@ -29,6 +29,11 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    
+    // Add explicit config for ViewBinding
+    buildFeatures {
+        viewBinding = true
+    }
 }
 
 dependencies {
@@ -41,7 +46,10 @@ dependencies {
     implementation ("androidx.core:core:1.10.1")
     implementation("com.github.bumptech.glide:glide:4.16.0")
     annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
-    implementation("com.github.PhilJay:MPAndroidChart:v3.1.0")
+    
+    // MPAndroidChart dependency - using implementation with direct coordinates
+    implementation(libs.mpandroidchart)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

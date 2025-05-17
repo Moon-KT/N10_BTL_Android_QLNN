@@ -200,4 +200,16 @@ public class Food implements Serializable {
     public String toString() {
         return name;
     }
+    
+    // Static test method for debugging
+    public static void testCategoryParsing(String categoryStr) {
+        Food testFood = new Food();
+        testFood.setCategory(categoryStr);
+        System.out.println("Input string: " + categoryStr);
+        System.out.println("Parsed categories: " + testFood.getCategories().size());
+        System.out.println("Category string: " + testFood.getCategoryString());
+        for (FoodCategory category : testFood.getCategories()) {
+            System.out.println(" - " + category.getDisplayName());
+        }
+    }
 } 

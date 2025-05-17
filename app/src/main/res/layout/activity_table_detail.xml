@@ -131,6 +131,28 @@
 
         </LinearLayout>
 
+        <!-- Delete Button (only visible in view mode) -->
+        <Button
+            android:id="@+id/buttonDeleteTable"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@android:color/holo_red_light"
+            android:text="Xóa bàn"
+            android:textColor="@android:color/white"
+            android:visibility="gone"/>
+
+        <!-- Save Button (only visible in view mode) -->
+        <Button
+            android:id="@+id/buttonSaveTableChanges"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:backgroundTint="@color/purple_500"
+            android:text="Lưu thay đổi"
+            android:textColor="@android:color/white"
+            android:visibility="gone"/>
+
         <!-- Food Order Section -->
         <TextView
             android:id="@+id/textViewOrderSectionTitle"

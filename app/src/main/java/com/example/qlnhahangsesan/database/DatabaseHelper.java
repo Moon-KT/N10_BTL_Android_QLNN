@@ -14,6 +14,9 @@ import java.util.Locale;
 import java.util.Random;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Collections;
 
 import com.example.qlnhahangsesan.model.DailyMenu;
 import com.example.qlnhahangsesan.model.Employee;
@@ -22,6 +25,7 @@ import com.example.qlnhahangsesan.model.Table;
 import com.example.qlnhahangsesan.model.StatisticItem;
 import com.example.qlnhahangsesan.model.Order;
 import com.example.qlnhahangsesan.model.OrderItem;
+import com.example.qlnhahangsesan.model.FoodCategory;
 
 public class DatabaseHelper extends SQLiteOpenHelper {
 
@@ -1426,6 +1430,116 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         return statistics;
     }
     
+    /**
+     * Thống kê món ăn phổ biến nhất (top N món ăn) trong khoảng thời gian
+     * @param limit Số lượng món ăn cần lấy
+     * @param startDate Ngày bắt đầu (yyyy-MM-dd), null nếu không giới hạn
+     * @param endDate Ngày kết thúc (yyyy-MM-dd), null nếu không giới hạn
+     * @return Danh sách thống kê món ăn phổ biến
+     */
+    public List<StatisticItem> getTopFoodsByDateRange(int limit, String startDate, String endDate) {
+        List<StatisticItem> statistics = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        
+        try {
+            Log.d(TAG, "Querying top " + limit + " foods from " + startDate + " to " + endDate);
+            
+            // Xây dựng phần WHERE cho điều kiện thời gian
+            StringBuilder whereClause = new StringBuilder();
+            List<String> whereArgs = new ArrayList<>();
+            
+            whereClause.append("o.").append(KEY_ORDER_STATUS).append(" = 'Đã thanh toán' ");
+            
+            if (startDate != null && !startDate.isEmpty()) {
+                whereClause.append("AND o.").append(KEY_ORDER_DATE).append(" >= ? ");
+                whereArgs.add(startDate);
+            }
+            
+            if (endDate != null && !endDate.isEmpty()) {
+                whereClause.append("AND o.").append(KEY_ORDER_DATE).append(" <= ? ");
+                whereArgs.add(endDate);
+            }
+            
+            // Truy vấn từ bảng order_items và foods với điều kiện thời gian
+            String query = "SELECT f." + KEY_FOOD_NAME + " as food_name, " +
+                    "SUM(oi." + KEY_ORDER_ITEM_QUANTITY + ") as total_qty " +
+                    "FROM " + TABLE_ORDER_ITEMS + " oi " +
+                    "JOIN " + TABLE_FOODS + " f ON oi." + KEY_ORDER_ITEM_FOOD_ID + " = f." + KEY_FOOD_ID + " " +
+                    "JOIN " + TABLE_ORDERS + " o ON oi." + KEY_ORDER_ITEM_ORDER_ID + " = o." + KEY_ORDER_ID + " " +
+                    "WHERE " + whereClause.toString() +
+                    "GROUP BY oi." + KEY_ORDER_ITEM_FOOD_ID + " " +
+                    "ORDER BY total_qty DESC " +
+                    "LIMIT ?";
+            
+            whereArgs.add(String.valueOf(limit));
+            
+            Cursor cursor = db.rawQuery(query, whereArgs.toArray(new String[0]));
+            
+            if (cursor.moveToFirst()) {
+                do {
+                    String foodName = cursor.getString(cursor.getColumnIndexOrThrow("food_name"));
+                    int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("total_qty"));
+                    Log.d(TAG, "Top food: " + foodName + " = " + quantity);
+                    statistics.add(new StatisticItem(foodName, quantity));
+                } while (cursor.moveToNext());
+            } else {
+                Log.d(TAG, "No top food data found in paid orders, checking all orders in date range");
+                
+                // Xây dựng lại điều kiện thời gian cho truy vấn fallback
+                whereClause = new StringBuilder();
+                whereArgs = new ArrayList<>();
+                
+                if (startDate != null && !startDate.isEmpty()) {
+                    whereClause.append("o.").append(KEY_ORDER_DATE).append(" >= ? ");
+                    whereArgs.add(startDate);
+                }
+                
+                if (endDate != null && !endDate.isEmpty()) {
+                    if (whereClause.length() > 0) {
+                        whereClause.append("AND ");
+                    }
+                    whereClause.append("o.").append(KEY_ORDER_DATE).append(" <= ? ");
+                    whereArgs.add(endDate);
+                }
+                
+                // Fallback: xem xét tất cả các đơn hàng trong khoảng thời gian, bất kể trạng thái
+                String whereClauseStr = whereClause.length() > 0 ? "WHERE " + whereClause.toString() : "";
+                
+                query = "SELECT f." + KEY_FOOD_NAME + " as food_name, " +
+                        "SUM(oi." + KEY_ORDER_ITEM_QUANTITY + ") as total_qty " +
+                        "FROM " + TABLE_ORDER_ITEMS + " oi " +
+                        "JOIN " + TABLE_FOODS + " f ON oi." + KEY_ORDER_ITEM_FOOD_ID + " = f." + KEY_FOOD_ID + " " +
+                        "JOIN " + TABLE_ORDERS + " o ON oi." + KEY_ORDER_ITEM_ORDER_ID + " = o." + KEY_ORDER_ID + " " +
+                        whereClauseStr +
+                        "GROUP BY oi." + KEY_ORDER_ITEM_FOOD_ID + " " +
+                        "ORDER BY total_qty DESC " +
+                        "LIMIT ?";
+                
+                whereArgs.add(String.valueOf(limit));
+                
+                cursor.close();
+                cursor = db.rawQuery(query, whereArgs.toArray(new String[0]));
+                
+                if (cursor.moveToFirst()) {
+                    do {
+                        String foodName = cursor.getString(cursor.getColumnIndexOrThrow("food_name"));
+                        int quantity = cursor.getInt(cursor.getColumnIndexOrThrow("total_qty"));
+                        Log.d(TAG, "Top food (all orders in range): " + foodName + " = " + quantity);
+                        statistics.add(new StatisticItem(foodName, quantity));
+                    } while (cursor.moveToNext());
+                } else {
+                    Log.d(TAG, "No food order data found in date range");
+                }
+            }
+            
+            cursor.close();
+        } catch (Exception e) {
+            Log.e(TAG, "Error getting top foods data by date range", e);
+        }
+        
+        return statistics;
+    }
+    
     // Thống kê số lượng bàn theo trạng thái
     public List<StatisticItem> getTableCountByStatus() {
         List<StatisticItem> statistics = new ArrayList<>();
@@ -1965,6 +2079,8 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         List<Order> orders = new ArrayList<>();
         SQLiteDatabase db = this.getReadableDatabase();
         
+        Log.d(TAG, "getOrdersByDate: Looking for orders on date: " + date);
+        
         // Convert date to start/end timestamps for that day
         String startOfDay = date + " 00:00:00";
         String endOfDay = date + " 23:59:59";
@@ -1976,16 +2092,34 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         try {
             startTimestamp = sdf.parse(startOfDay).getTime();
             endTimestamp = sdf.parse(endOfDay).getTime();
+            Log.d(TAG, "getOrdersByDate: Start timestamp: " + startTimestamp + ", End timestamp: " + endTimestamp);
         } catch (Exception e) {
             Log.e(TAG, "Error parsing date", e);
             return orders;
         }
         
+        // Try with timestamp comparison first (milliseconds since epoch)
         String query = "SELECT * FROM " + TABLE_ORDERS + 
                        " WHERE " + KEY_ORDER_DATE + " BETWEEN ? AND ?" +
                        " ORDER BY " + KEY_ORDER_DATE + " DESC";
         
         Cursor cursor = db.rawQuery(query, new String[]{String.valueOf(startTimestamp), String.valueOf(endTimestamp)});
+        int count = cursor.getCount();
+        Log.d(TAG, "getOrdersByDate: Found " + count + " orders using timestamp comparison");
+        
+        // If no results with timestamp, try with date string comparison
+        if (count == 0) {
+            cursor.close();
+            
+            // Extract date only from stored timestamps as strings for comparison
+            query = "SELECT * FROM " + TABLE_ORDERS + 
+                   " WHERE date(datetime(" + KEY_ORDER_DATE + "/1000, 'unixepoch', 'localtime')) = ?" +
+                   " ORDER BY " + KEY_ORDER_DATE + " DESC";
+            
+            cursor = db.rawQuery(query, new String[]{date});
+            count = cursor.getCount();
+            Log.d(TAG, "getOrdersByDate: Found " + count + " orders using date string comparison");
+        }
         
         try {
             if (cursor.moveToFirst()) {
@@ -2008,6 +2142,12 @@ public class DatabaseHelper extends SQLiteOpenHelper {
                     }
                     
                     orders.add(order);
+                    
+                    Log.d(TAG, "getOrdersByDate: Added order ID: " + order.getId() + 
+                           ", Date: " + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(order.getOrderDate()) + 
+                           ", Table: " + order.getTableId() + 
+                           ", Amount: " + order.getTotalAmount());
+                    
                 } while (cursor.moveToNext());
             }
         } catch (Exception e) {
@@ -2018,6 +2158,7 @@ public class DatabaseHelper extends SQLiteOpenHelper {
             }
         }
         
+        Log.d(TAG, "getOrdersByDate: Returning " + orders.size() + " orders for date: " + date);
         return orders;
     }
     
@@ -2193,5 +2334,60 @@ public class DatabaseHelper extends SQLiteOpenHelper {
         
         int rows = db.update(TABLE_ORDERS, values, selection, selectionArgs);
         return rows > 0;
+    }
+
+    // Thống kê số lượng món ăn theo danh mục - hiển thị tất cả các danh mục
+    public List<StatisticItem> getAllCategoryStatistics() {
+        List<StatisticItem> statistics = new ArrayList<>();
+        SQLiteDatabase db = getReadableDatabase();
+        
+        // Initialize a map to store category counts
+        Map<String, Integer> categoryCounts = new HashMap<>();
+        
+        // Initialize all categories from enum with count 0
+        for (FoodCategory category : FoodCategory.values()) {
+            categoryCounts.put(category.getDisplayName(), 0);
+        }
+        
+        // Better approach: Get all foods and count each category instance
+        List<Food> foods = getAllFoods();
+        Log.d(TAG, "getAllCategoryStatistics: Total foods fetched: " + foods.size());
+        
+        for (Food food : foods) {
+            List<FoodCategory> foodCategories = food.getCategories();
+            Log.d(TAG, "Food: " + food.getName() + ", Categories: " + food.getCategoryString() + ", Category count: " + foodCategories.size());
+            
+            // Count this food in all its categories
+            for (FoodCategory category : foodCategories) {
+                String categoryName = category.getDisplayName();
+                Log.d(TAG, "  - Adding to category: " + categoryName);
+                
+                // Increment the count for this category
+                Integer currentCount = categoryCounts.get(categoryName);
+                if (currentCount != null) {
+                    categoryCounts.put(categoryName, currentCount + 1);
+                } else {
+                    // Handle category not in enum
+                    categoryCounts.put(categoryName, 1);
+                }
+            }
+        }
+        
+        // Log for debugging
+        for (Map.Entry<String, Integer> entry : categoryCounts.entrySet()) {
+            Log.d(TAG, "Final count - Category: " + entry.getKey() + ", Count: " + entry.getValue());
+        }
+        
+        // Create statistics items for all categories from enum
+        for (FoodCategory category : FoodCategory.values()) {
+            String categoryName = category.getDisplayName();
+            int count = categoryCounts.getOrDefault(categoryName, 0);
+            statistics.add(new StatisticItem(categoryName, count));
+        }
+        
+        // Sort by count descending
+        Collections.sort(statistics, (item1, item2) -> Double.compare(item2.getValue(), item1.getValue()));
+        
+        return statistics;
     }
 } 

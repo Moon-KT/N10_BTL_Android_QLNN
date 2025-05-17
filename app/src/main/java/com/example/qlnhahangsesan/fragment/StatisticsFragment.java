@@ -6,6 +6,8 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AutoCompleteTextView;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -53,6 +55,14 @@ public class StatisticsFragment extends Fragment {
     @Deprecated
     public static final int TYPE_MENU_BY_DATE = STATS_TYPE_MENU_BY_DATE;
     
+    // Constants for time range
+    public static final int TIME_RANGE_ALL = 0;
+    public static final int TIME_RANGE_TODAY = 1;
+    public static final int TIME_RANGE_THIS_WEEK = 2;
+    public static final int TIME_RANGE_THIS_MONTH = 3;
+    public static final int TIME_RANGE_THIS_YEAR = 4;
+    public static final int TIME_RANGE_CUSTOM = 5;
+    
     private int statisticType;
     private DatabaseHelper databaseHelper;
     
@@ -61,17 +71,28 @@ public class StatisticsFragment extends Fragment {
     private ProgressBar progressBar;
     private LinearLayout layoutDateFilter;
     private LinearLayout layoutLimitFilter;
+    private LinearLayout layoutTimeFilterTopFoods;
+    private LinearLayout layoutDateRangeTopFoods;
     private TextInputEditText editTextStartDate;
     private TextInputEditText editTextEndDate;
     private TextInputEditText editTextLimit;
+    private TextInputEditText editTextStartDateTopFoods;
+    private TextInputEditText editTextEndDateTopFoods;
+    private AutoCompleteTextView spinnerTimeRange;
     private Button buttonApply;
+    private Button buttonApplyDateFilter;
     
     private StatisticsAdapter adapter;
     private List<StatisticItem> statisticsList = new ArrayList<>();
     
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
+    private SimpleDateFormat displayDateFormat = new SimpleDateFormat("dd/MM/yyyy", Locale.getDefault());
     private Calendar startDateCalendar = Calendar.getInstance();
     private Calendar endDateCalendar = Calendar.getInstance();
+    private Calendar startDateTopFoodsCalendar = Calendar.getInstance();
+    private Calendar endDateTopFoodsCalendar = Calendar.getInstance();
+    
+    private int selectedTimeRange = TIME_RANGE_ALL;
 
     public StatisticsFragment() {
         // Required empty public constructor
@@ -127,10 +148,37 @@ public class StatisticsFragment extends Fragment {
         progressBar = view.findViewById(R.id.progressBar);
         layoutDateFilter = view.findViewById(R.id.layoutDateFilter);
         layoutLimitFilter = view.findViewById(R.id.layoutLimitFilter);
+        layoutTimeFilterTopFoods = view.findViewById(R.id.layoutTimeFilterTopFoods);
+        layoutDateRangeTopFoods = view.findViewById(R.id.layoutDateRangeTopFoods);
         editTextStartDate = view.findViewById(R.id.editTextStartDate);
         editTextEndDate = view.findViewById(R.id.editTextEndDate);
         editTextLimit = view.findViewById(R.id.editTextLimit);
+        editTextStartDateTopFoods = view.findViewById(R.id.editTextStartDateTopFoods);
+        editTextEndDateTopFoods = view.findViewById(R.id.editTextEndDateTopFoods);
+        spinnerTimeRange = view.findViewById(R.id.spinnerTimeRange);
         buttonApply = view.findViewById(R.id.buttonApply);
+        buttonApplyDateFilter = view.findViewById(R.id.buttonApplyDateFilter);
+        
+        // Thiết lập spinner cho khoảng thời gian
+        String[] timeRangeOptions = {
+                "Tất cả thời gian", 
+                "Hôm nay",
+                "Tuần này", 
+                "Tháng này", 
+                "Năm nay", 
+                "Tùy chỉnh..."
+        };
+        
+        ArrayAdapter<String> timeRangeAdapter = new ArrayAdapter<>(
+                getContext(),
+                android.R.layout.simple_dropdown_item_1line,
+                timeRangeOptions
+        );
+        
+        spinnerTimeRange.setAdapter(timeRangeAdapter);
+        
+        // Mặc định: Tất cả thời gian
+        spinnerTimeRange.setText(timeRangeOptions[TIME_RANGE_ALL], false);
     }
     
     private void setupRecyclerView() {
@@ -162,6 +210,56 @@ public class StatisticsFragment extends Fragment {
         editTextStartDate.setOnClickListener(v -> showDatePickerDialog(true));
         editTextEndDate.setOnClickListener(v -> showDatePickerDialog(false));
         buttonApply.setOnClickListener(v -> loadStatistics());
+        
+        // Thêm xử lý cho nút Áp dụng lọc ngày
+        if (buttonApplyDateFilter != null) {
+            buttonApplyDateFilter.setOnClickListener(v -> {
+                // Làm nổi bật nút khi được nhấn
+                buttonApplyDateFilter.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                        getResources().getColor(android.R.color.holo_blue_dark)));
+                
+                // Tải lại dữ liệu với khoảng ngày đã chọn
+                loadStatistics();
+                
+                // Đổi lại màu sau 300ms
+                buttonApplyDateFilter.postDelayed(() -> {
+                    buttonApplyDateFilter.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                            getResources().getColor(android.R.color.holo_blue_light)));
+                }, 300);
+            });
+        }
+        
+        // Xử lý sự kiện chọn khoảng thời gian
+        spinnerTimeRange.setOnItemClickListener((parent, view, position, id) -> {
+            selectedTimeRange = position;
+            
+            // Hiển thị bộ chọn khoảng thời gian tùy chỉnh nếu chọn "Tùy chỉnh..."
+            if (position == TIME_RANGE_CUSTOM) {
+                layoutDateRangeTopFoods.setVisibility(View.VISIBLE);
+                
+                // Khởi tạo giá trị mặc định cho khoảng thời gian
+                if (editTextStartDateTopFoods.getText().toString().isEmpty()) {
+                    // Mặc định: từ đầu tháng hiện tại đến hiện tại
+                    Calendar startCal = Calendar.getInstance();
+                    startCal.set(Calendar.DAY_OF_MONTH, 1);
+                    startDateTopFoodsCalendar = startCal;
+                    endDateTopFoodsCalendar = Calendar.getInstance();
+                    updateTopFoodsDateDisplay();
+                }
+                
+                // Thiết lập sự kiện click để chọn ngày
+                editTextStartDateTopFoods.setOnClickListener(v -> showTopFoodsDatePickerDialog(true));
+                editTextEndDateTopFoods.setOnClickListener(v -> showTopFoodsDatePickerDialog(false));
+            } else {
+                layoutDateRangeTopFoods.setVisibility(View.GONE);
+                
+                // Cập nhật khoảng thời gian dựa vào lựa chọn
+                updateTimeRangeBasedOnSelection(position);
+            }
+            
+            // Tải lại dữ liệu sau khi chọn khoảng thời gian
+            loadStatistics();
+        });
     }
     
     private void showDatePickerDialog(boolean isStartDate) {
@@ -175,6 +273,12 @@ public class StatisticsFragment extends Fragment {
                         endDateCalendar.set(year, month, dayOfMonth);
                     }
                     updateDateDisplay();
+                    
+                    // Làm nổi bật nút áp dụng sau khi chọn ngày
+                    if (buttonApplyDateFilter != null) {
+                        buttonApplyDateFilter.setBackgroundTintList(android.content.res.ColorStateList.valueOf(
+                                getResources().getColor(android.R.color.holo_blue_bright)));
+                    }
                 },
                 calendar.get(Calendar.YEAR),
                 calendar.get(Calendar.MONTH),
@@ -188,6 +292,85 @@ public class StatisticsFragment extends Fragment {
         editTextEndDate.setText(dateFormat.format(endDateCalendar.getTime()));
     }
     
+    /**
+     * Hiển thị dialog chọn ngày cho bộ lọc top món ăn
+     */
+    private void showTopFoodsDatePickerDialog(boolean isStartDate) {
+        Calendar calendar = isStartDate ? startDateTopFoodsCalendar : endDateTopFoodsCalendar;
+        DatePickerDialog datePickerDialog = new DatePickerDialog(
+                getContext(),
+                (view, year, month, dayOfMonth) -> {
+                    if (isStartDate) {
+                        startDateTopFoodsCalendar.set(year, month, dayOfMonth);
+                    } else {
+                        endDateTopFoodsCalendar.set(year, month, dayOfMonth);
+                    }
+                    updateTopFoodsDateDisplay();
+                    
+                    // Tải lại danh sách sau khi chọn ngày
+                    loadStatistics();
+                },
+                calendar.get(Calendar.YEAR),
+                calendar.get(Calendar.MONTH),
+                calendar.get(Calendar.DAY_OF_MONTH)
+        );
+        datePickerDialog.show();
+    }
+    
+    /**
+     * Cập nhật hiển thị ngày cho bộ lọc top món ăn
+     */
+    private void updateTopFoodsDateDisplay() {
+        editTextStartDateTopFoods.setText(displayDateFormat.format(startDateTopFoodsCalendar.getTime()));
+        editTextEndDateTopFoods.setText(displayDateFormat.format(endDateTopFoodsCalendar.getTime()));
+    }
+    
+    /**
+     * Cập nhật khoảng thời gian dựa vào lựa chọn từ spinner
+     */
+    private void updateTimeRangeBasedOnSelection(int position) {
+        Calendar startCal = Calendar.getInstance();
+        Calendar endCal = Calendar.getInstance();
+        
+        switch (position) {
+            case TIME_RANGE_TODAY:
+                // Hôm nay: Từ 0h đến 23h59m59s
+                startCal.set(Calendar.HOUR_OF_DAY, 0);
+                startCal.set(Calendar.MINUTE, 0);
+                startCal.set(Calendar.SECOND, 0);
+                
+                endCal.set(Calendar.HOUR_OF_DAY, 23);
+                endCal.set(Calendar.MINUTE, 59);
+                endCal.set(Calendar.SECOND, 59);
+                break;
+                
+            case TIME_RANGE_THIS_WEEK:
+                // Tuần này: Từ thứ 2 đến hiện tại
+                startCal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY);
+                break;
+                
+            case TIME_RANGE_THIS_MONTH:
+                // Tháng này: Từ ngày 1 đến hiện tại
+                startCal.set(Calendar.DAY_OF_MONTH, 1);
+                break;
+                
+            case TIME_RANGE_THIS_YEAR:
+                // Năm này: Từ ngày 1/1 đến hiện tại
+                startCal.set(Calendar.DAY_OF_YEAR, 1);
+                break;
+                
+            case TIME_RANGE_ALL:
+            default:
+                // Mặc định không đặt giới hạn thời gian
+                startCal = null;
+                endCal = null;
+                break;
+        }
+        
+        startDateTopFoodsCalendar = startCal;
+        endDateTopFoodsCalendar = endCal;
+    }
+    
     public void loadStatistics() {
         progressBar.setVisibility(View.VISIBLE);
         textViewEmpty.setVisibility(View.GONE);
@@ -198,7 +381,7 @@ public class StatisticsFragment extends Fragment {
             
             switch (statisticType) {
                 case STATS_TYPE_FOOD_CATEGORY:
-                    result = databaseHelper.getFoodCountByCategory();
+                    result = databaseHelper.getAllCategoryStatistics();
                     break;
                 case STATS_TYPE_REVENUE:
                     String startDate = editTextStartDate.getText().toString();
@@ -212,7 +395,36 @@ public class StatisticsFragment extends Fragment {
                     } catch (NumberFormatException e) {
                         // Use default value
                     }
-                    result = databaseHelper.getTopFoods(limit);
+                    
+                    // Nếu không phải lọc tất cả thời gian, truyền thêm khoảng thời gian
+                    if (selectedTimeRange != TIME_RANGE_ALL) {
+                        String startDateTopFoods = null;
+                        String endDateTopFoods = null;
+                        
+                        if (selectedTimeRange == TIME_RANGE_CUSTOM) {
+                            // Lấy từ ngày từ UI khi chọn tùy chỉnh
+                            if (startDateTopFoodsCalendar != null) {
+                                startDateTopFoods = dateFormat.format(startDateTopFoodsCalendar.getTime());
+                            }
+                            if (endDateTopFoodsCalendar != null) {
+                                endDateTopFoods = dateFormat.format(endDateTopFoodsCalendar.getTime());
+                            }
+                        } else {
+                            // Lấy từ ngày từ cài đặt theo lựa chọn spinner
+                            if (startDateTopFoodsCalendar != null) {
+                                startDateTopFoods = dateFormat.format(startDateTopFoodsCalendar.getTime());
+                            }
+                            if (endDateTopFoodsCalendar != null) {
+                                endDateTopFoods = dateFormat.format(endDateTopFoodsCalendar.getTime());
+                            }
+                        }
+                        
+                        // Gọi phương thức có tham số thời gian
+                        result = databaseHelper.getTopFoodsByDateRange(limit, startDateTopFoods, endDateTopFoods);
+                    } else {
+                        // Sử dụng phương thức hiện có cho tất cả thời gian
+                        result = databaseHelper.getTopFoods(limit);
+                    }
                     break;
                 case STATS_TYPE_TABLE_STATUS:
                     result = databaseHelper.getTableCountByStatus();
@@ -278,5 +490,58 @@ public class StatisticsFragment extends Fragment {
      */
     public void refreshData() {
         loadStatistics();
+    }
+
+    /**
+     * Lấy giá trị limit hiện tại cho top món ăn phổ biến
+     * @return Số lượng món ăn hiển thị trong top
+     */
+    public int getTopFoodsLimit() {
+        if (editTextLimit != null && editTextLimit.getText() != null && !editTextLimit.getText().toString().isEmpty()) {
+            try {
+                // Lấy giá trị từ EditText và đảm bảo nó là số dương
+                int limit = Integer.parseInt(editTextLimit.getText().toString());
+                if (limit > 0) {
+                    return limit;
+                }
+            } catch (NumberFormatException e) {
+                Log.e("StatisticsFragment", "Error parsing limit value: " + e.getMessage());
+            }
+        }
+        // Giá trị mặc định
+        return 10;
+    }
+    
+    /**
+     * Lấy thông tin khoảng thời gian đã chọn cho top món ăn phổ biến
+     * @return Mảng 2 phần tử [startDate, endDate] hoặc null nếu không có lọc thời gian
+     */
+    public String[] getTopFoodsDateRange() {
+        if (selectedTimeRange == TIME_RANGE_ALL) {
+            return null; // Trả về null nếu chọn "Tất cả thời gian"
+        }
+        
+        String startDate = null;
+        String endDate = null;
+        
+        // Nếu chọn tùy chỉnh, lấy giá trị từ trường nhập liệu
+        if (selectedTimeRange == TIME_RANGE_CUSTOM) {
+            if (startDateTopFoodsCalendar != null) {
+                startDate = dateFormat.format(startDateTopFoodsCalendar.getTime());
+            }
+            if (endDateTopFoodsCalendar != null) {
+                endDate = dateFormat.format(endDateTopFoodsCalendar.getTime());
+            }
+        } else {
+            // Lấy giá trị từ lựa chọn spinner đã được tính toán trước đó
+            if (startDateTopFoodsCalendar != null) {
+                startDate = dateFormat.format(startDateTopFoodsCalendar.getTime());
+            }
+            if (endDateTopFoodsCalendar != null) {
+                endDate = dateFormat.format(endDateTopFoodsCalendar.getTime());
+            }
+        }
+        
+        return new String[] {startDate, endDate};
     }
 } 

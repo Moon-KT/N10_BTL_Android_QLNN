@@ -66,6 +66,12 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
         if (intent != null) {
             forDailyMenu = intent.getBooleanExtra("forDailyMenu", false);
             selectedDate = intent.getStringExtra("selectedDate");
+            
+            // Check if a specific category was passed
+            String selectedCategory = intent.getStringExtra("category");
+            if (selectedCategory != null && !selectedCategory.isEmpty()) {
+                currentCategory = selectedCategory;
+            }
         }
 
         // Initialize database helper
@@ -252,17 +258,28 @@ public class FoodListActivity extends AppCompatActivity implements FoodAdapter.O
                 // Load foods based on selected category
                 loadFoodsByCategory();
             }
-
+            
             @Override
             public void onTabUnselected(TabLayout.Tab tab) {
                 // Do nothing
             }
-
+            
             @Override
             public void onTabReselected(TabLayout.Tab tab) {
                 // Do nothing
             }
         });
+        
+        // If a specific category was passed in intent, select that tab
+        if (!currentCategory.equals("Tất cả")) {
+            for (int i = 0; i < tabLayoutCategories.getTabCount(); i++) {
+                TabLayout.Tab tab = tabLayoutCategories.getTabAt(i);
+                if (tab != null && tab.getText() != null && tab.getText().toString().equals(currentCategory)) {
+                    tab.select();
+                    break;
+                }
+            }
+        }
     }
     
     private void loadFoodsByCategory() {
