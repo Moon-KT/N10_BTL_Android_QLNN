@@ -183,7 +183,7 @@ public class StatisticsFragment extends Fragment {
     
     private void setupRecyclerView() {
         recyclerViewStatistics.setLayoutManager(new LinearLayoutManager(getContext()));
-        boolean isMonetary = (statisticType == STATS_TYPE_REVENUE || statisticType == STATS_TYPE_TOP_FOODS);
+        boolean isMonetary = (statisticType == STATS_TYPE_REVENUE );
         adapter = new StatisticsAdapter(getContext(), statisticsList, isMonetary, statisticType);
         recyclerViewStatistics.setAdapter(adapter);
     }
